@@ -1,44 +1,29 @@
 import streamlit as st
 
-# Configuración de estilo Champlitte (Modo Oscuro con Verde Claro)
+# Configuración de estilo Champlitte
 st.markdown("""
     <style>
     .stApp { background-color: #121212; color: white; }
     
-    /* Estilo de los botones */
     .stButton>button { 
-        width: 100%; 
-        border-radius: 8px; 
-        height: auto; 
-        padding-top: 10px;
-        padding-bottom: 10px;
-        background-color: #90ee90; /* Verde claro */
-        color: #121212 !important; /* Texto oscuro para contraste */
-        font-weight: bold;
-        border: none;
-        display: block;
-        white-space: normal; /* Evita que el texto se oculte o corte */
-        word-wrap: break-word;
+        width: 100%; border-radius: 8px; height: auto; 
+        padding: 10px; background-color: #90ee90; 
+        color: #121212 !important; font-weight: bold;
+        border: none; display: block; white-space: normal;
     }
     
-    .stButton>button:hover {
-        background-color: #77dd77; /* Verde un poco más oscuro al pasar el mouse */
-        color: #000000 !important;
-    }
-
-    /* Estilo de los inputs */
-    input { color: white !important; }
-    
-    /* Estilo de las métricas */
-    [data-testid="stMetricValue"] {
-        color: #90ee90 !important;
+    /* Fondo negro en los campos de dinero */
+    input { 
+        background-color: #000000 !important; 
+        color: #ffffff !important; 
+        border: 1px solid #444 !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("💰 Cierre de Ventas - Champlitte")
 
-# Inicializar el estado de la aplicación
+# Inicializar ventas y un rastreador de limpieza
 if 'ventas' not in st.session_state:
     st.session_state.ventas = {
         "Efectivo": [], "Transferencia Liga": [], "Tarjeta Débito": [], 
@@ -48,40 +33,29 @@ if 'ventas' not in st.session_state:
 
 total_general = 0
 
-# Generar interfaz por categoría
+# Función para añadir y limpiar el campo automáticamente
+def guardar_y_limpiar(categoria):
+    key = f"input_{categoria}"
+    monto = st.session_state[key]
+    if monto is not None and monto > 0:
+        st.session_state.ventas[categoria].append(monto)
+        # Esta es la clave: reseteamos el valor en el session_state
+        st.session_state[key] = None 
+
+# Interfaz
 for cat, montos in st.session_state.ventas.items():
     with st.expander(f"📊 {cat} - Subtotal: ${sum(montos):.2f}", expanded=True):
         
-        nuevo_monto = st.number_input(
-            f"Ingresar monto:", 
+        # El campo ahora está vinculado directamente al session_state
+        st.number_input(
+            f"Ingresar cantidad:", 
             min_value=0.0, 
             step=0.01, 
             value=None, 
-            placeholder="0.00",
-            key=f"input_{cat}"
+            placeholder="Escribe aquí...",
+            key=f"input_{cat}",
+            on_change=None # El cambio se procesa al picar el botón
         )
         
-        # Botón con texto multilínea si es necesario
-        if st.button(f"Añadir a {cat}", key=f"btn_{cat}"):
-            if nuevo_monto is not None and nuevo_monto > 0:
-                st.session_state.ventas[cat].append(nuevo_monto)
-                st.rerun()
-
-        # Listado de montos con borrado individual
-        for i, m in enumerate(montos):
-            col1, col2 = st.columns([4, 1])
-            col1.write(f"Pago {i+1}: **${m:.2f}**")
-            if col2.button("🗑️", key=f"del_{cat}_{i}"):
-                st.session_state.ventas[cat].pop(i)
-                st.rerun()
-    
-    total_general += sum(montos)
-
-st.markdown("---")
-st.metric(label="TOTAL FINAL DEL DÍA", value=f"${total_general:.2f}")
-
-# Botón de reset general con un color distinto para precaución
-if st.button("🔴 REINICIAR TODO EL CIERRE", key="reset_all"):
-    for cat in st.session_state.ventas:
-        st.session_state.ventas[cat] = []
-    st.rerun()
+        # Al pulsar el botón, se ejecuta la lógica de guardado y limpieza
+        if st.button(
