@@ -5,6 +5,7 @@ st.markdown("""
     <style>
     .stApp { background-color: #121212; color: white; }
     
+    /* Botones verde claro sin cambio de color al pasar el cursor */
     .stButton>button { 
         width: 100%; border-radius: 8px; height: auto; 
         padding: 10px; background-color: #90ee90 !important; 
@@ -16,10 +17,9 @@ st.markdown("""
         background-color: #90ee90 !important;
         color: #121212 !important;
         border: none !important;
-        outline: none !important;
-        box-shadow: none !important;
     }
 
+    /* Sombreado negro en los campos de dinero */
     input { 
         background-color: #000000 !important; 
         color: #ffffff !important; 
@@ -34,7 +34,7 @@ st.markdown("""
 
 st.title("💰 Cierre de Ventas - Champlitte")
 
-# Inicializar ventas con el nuevo orden: Efectivo seguido de Retiros
+# Estructura de categorías (Sin Anticipos ni Pedido Liberado)
 if 'ventas' not in st.session_state:
     st.session_state.ventas = {
         "Efectivo": [], 
@@ -42,13 +42,12 @@ if 'ventas' not in st.session_state:
         "Transferencia Liga": [], 
         "Tarjeta Débito": [], 
         "Tarjeta Crédito": [], 
-        "Anticipos": [], 
-        "Pedido Liberado": [], 
         "Uber": [], 
         "Didi": [], 
         "Rappi": []
     }
 
+# Función para añadir y limpiar el campo automáticamente
 def guardar_y_limpiar(categoria):
     key = f"input_{categoria}"
     monto = st.session_state[key]
@@ -56,19 +55,19 @@ def guardar_y_limpiar(categoria):
         st.session_state.ventas[categoria].append(monto)
         st.session_state[key] = None 
 
-total_general = 0
 suma_santander = 0
 
+# Interfaz de usuario
 for cat, montos in st.session_state.ventas.items():
     subtotal = sum(montos)
     with st.expander(f"📊 {cat} - Subtotal: ${subtotal:.2f}", expanded=True):
         
         st.number_input(
-            f"Ingresar cantidad para {cat}:", 
+            f"Ingresar cantidad:", 
             min_value=0.0, 
             step=0.01, 
             value=None, 
-            placeholder="Escribe aquí...",
+            placeholder="0.00",
             key=f"input_{cat}"
         )
         
@@ -86,24 +85,18 @@ for cat, montos in st.session_state.ventas.items():
                 st.session_state.ventas[cat].pop(i)
                 st.rerun()
     
-    # Sumatoria para el total de la Ficha Santander (Solo Efectivo y Retiros)
+    # Lógica de Ficha Santander: Solo suma Efectivo y Retiros
     if cat in ["Efectivo", "Retiros"]:
         suma_santander += subtotal
-        
-    total_general += subtotal
 
 st.markdown("---")
 
-# Métricas finales
-col_a, col_b = st.columns(2)
-with col_a:
-    st.metric(label="Total Ficha Santander del turno", value=f"${suma_santander:.2f}")
-with col_b:
-    st.metric(label="TOTAL GENERAL (Todas las fuentes)", value=f"${total_general:.2f}")
+# Métrica final solicitada
+st.metric(label="Total Ficha Santander del Turno", value=f"${suma_santander:.2f}")
 
 st.markdown("---")
 
-if st.button("🔴 REINICIAR TODO EL CIERRE", key="reset_all"):
+if st.button("LIMPIAR", key="reset_all"):
     for cat in st.session_state.ventas:
         st.session_state.ventas[cat] = []
     st.rerun()
