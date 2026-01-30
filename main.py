@@ -1,17 +1,33 @@
 import streamlit as st
 
-# Configuración de estilo Champlitte
+# Configuración de estilo Champlitte (Verde estable, sin cambio a gris)
 st.markdown("""
     <style>
     .stApp { background-color: #121212; color: white; }
     
+    /* Botones principales en verde claro */
     .stButton>button { 
-        width: 100%; border-radius: 8px; height: auto; 
-        padding: 10px; background-color: #90ee90; 
-        color: #121212 !important; font-weight: bold;
-        border: none; display: block; white-space: normal;
+        width: 100%; 
+        border-radius: 8px; 
+        height: auto; 
+        padding: 10px; 
+        background-color: #90ee90 !important; /* Verde claro forzado */
+        color: #121212 !important; 
+        font-weight: bold;
+        border: none;
+        display: block;
+        white-space: normal;
     }
     
+    /* ELIMINAR EFECTO GRIS: Forzamos que el hover mantenga el verde */
+    .stButton>button:hover, .stButton>button:active, .stButton>button:focus {
+        background-color: #90ee90 !important;
+        color: #121212 !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
     /* Fondo negro en los campos de dinero */
     input { 
         background-color: #000000 !important; 
@@ -19,7 +35,6 @@ st.markdown("""
         border: 1px solid #444 !important;
     }
     
-    /* Color verde para el Total */
     [data-testid="stMetricValue"] {
         color: #90ee90 !important;
     }
@@ -28,7 +43,6 @@ st.markdown("""
 
 st.title("💰 Cierre de Ventas - Champlitte")
 
-# Inicializar ventas
 if 'ventas' not in st.session_state:
     st.session_state.ventas = {
         "Efectivo": [], "Transferencia Liga": [], "Tarjeta Débito": [], 
@@ -36,7 +50,6 @@ if 'ventas' not in st.session_state:
         "Uber": [], "Didi": [], "Rappi": []
     }
 
-# Función para añadir y limpiar el campo automáticamente
 def guardar_y_limpiar(categoria):
     key = f"input_{categoria}"
     monto = st.session_state[key]
@@ -46,13 +59,11 @@ def guardar_y_limpiar(categoria):
 
 total_general = 0
 
-# Interfaz por categoría
 for cat, montos in st.session_state.ventas.items():
     with st.expander(f"📊 {cat} - Subtotal: ${sum(montos):.2f}", expanded=True):
         
-        # Campo de entrada vinculado al session_state
         st.number_input(
-            f"Ingresar cantidad para {cat}:", 
+            f"Ingresar cantidad:", 
             min_value=0.0, 
             step=0.01, 
             value=None, 
@@ -60,7 +71,6 @@ for cat, montos in st.session_state.ventas.items():
             key=f"input_{cat}"
         )
         
-        # Botón con la lógica de guardado corregida
         st.button(
             f"Añadir a {cat}", 
             key=f"btn_{cat}", 
@@ -80,7 +90,6 @@ for cat, montos in st.session_state.ventas.items():
 st.markdown("---")
 st.metric(label="TOTAL FINAL DEL DÍA", value=f"${total_general:.2f}")
 
-# Botón de reset general
 if st.button("🔴 REINICIAR TODO EL CIERRE", key="reset_all"):
     for cat in st.session_state.ventas:
         st.session_state.ventas[cat] = []
