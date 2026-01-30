@@ -49,7 +49,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("💰 Cierre de Ventas - Champlitte")
+st.title("💰 Corte de Caja")
 
 # Inicializar ventas
 if 'ventas' not in st.session_state:
@@ -113,7 +113,7 @@ st.metric(label="Total Ficha Santander del turno", value=f"${suma_santander:.2f}
 
 st.markdown("---")
 
-if st.button("🔴 REINICIAR TODO EL CIERRE", key="reset_all"):
+if st.button("LIMPIAR", key="reset_all"):
     for cat in st.session_state.ventas:
         st.session_state.ventas[cat] = []
     st.rerun()
