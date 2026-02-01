@@ -1,80 +1,122 @@
 import streamlit as st
-from streamlit_cookies_manager import EncryptedCookieManager
 
-# --- CONFIGURACIÓN DE COOKIES ---
-# Importante: La contraseña debe tener al menos 16 caracteres para ser segura
-cookies = EncryptedCookieManager(password="champlitte_clave_maestra_2026_segura")
-
-if not cookies.ready():
-    # Mientras la cookie carga, mostramos un mensaje amigable
-    st.info("Cargando memoria del dispositivo...")
-    st.stop()
-
-# --- CONFIGURACIÓN DE PÁGINA ---
+# Configuración de la página para que se vea más limpia
 st.set_page_config(page_title="Cierre Champlitte", layout="centered")
 
-# Estilos CSS
+# CSS para ocultar menú de arriba, iconos de código y pie de página de Streamlit
 st.markdown("""
     <style>
-    header, footer {visibility: hidden;}
+    /* Ocultar barra superior y menú de Streamlit */
+    header {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stDeployButton {display:none;}
+    
     .stApp { background-color: #121212; color: white; }
+    
+    /* Botones verde claro estables */
     .stButton>button { 
-        width: 100%; border-radius: 8px; background-color: #90ee90 !important; 
-        color: #121212 !important; font-weight: bold; border: none;
+        width: 100%; border-radius: 8px; height: auto; 
+        padding: 10px; background-color: #90ee90 !important; 
+        color: #121212 !important; font-weight: bold;
+        border: none; display: block; white-space: normal;
     }
-    input { background-color: #000000 !important; color: #ffffff !important; border: 1px solid #444 !important; }
-    [data-testid="stMetricValue"] { color: #90ee90 !important; }
+    
+    .stButton>button:hover, .stButton>button:active, .stButton>button:focus {
+        background-color: #90ee90 !important;
+        color: #121212 !important;
+        border: none !important;
+    }
+
+    /* Sombreado negro en los campos de dinero */
+    input { 
+        background-color: #000000 !important; 
+        color: #ffffff !important; 
+        border: 1px solid #444 !important;
+    }
+    
+    /* Estilo para el pie de página personalizado */
+    .footer-text {
+        text-align: left;
+        color: #666;
+        font-size: 0.8rem;
+        margin-top: 30px;
+    }
+
+    [data-testid="stMetricValue"] {
+        color: #90ee90 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- INICIALIZACIÓN DE DATOS ---
-# Si es la primera vez que abres la app, creamos la estructura
-if "ventas_v2" not in cookies:
-    cookies["ventas_v2"] = {
-        "Efectivo": [], "Retiros": [], "Transferencia Liga": [], 
-        "Tarjeta Débito": [], "Tarjeta Crédito": [], 
-        "Uber": [], "Didi": [], "Rappi": []
-    }
-    cookies.save()
-
-# Variable de trabajo vinculada a la cookie
-datos_ventas = cookies["ventas_v2"]
-
-# --- INTERFAZ ---
 st.title("💰 Corte de Caja")
+
+# Inicializar ventas
+if 'ventas' not in st.session_state:
+    st.session_state.ventas = {
+        "Efectivo": [], 
+        "Retiros": [], 
+        "Transferencia Liga": [], 
+        "Tarjeta Débito": [], 
+        "Tarjeta Crédito": [], 
+        "Uber": [], 
+        "Didi": [], 
+        "Rappi": []
+    }
+
+# Función para añadir y limpiar el campo automáticamente
+def guardar_y_limpiar(categoria):
+    key = f"input_{categoria}"
+    monto = st.session_state[key]
+    if monto is not None and monto > 0:
+        st.session_state.ventas[categoria].append(monto)
+        st.session_state[key] = None 
 
 suma_santander = 0
 
-for cat in list(datos_ventas.keys()):
-    montos = datos_ventas[cat]
+# Interfaz de usuario
+for cat, montos in st.session_state.ventas.items():
     subtotal = sum(montos)
+    with st.expander(f"📊 {cat} - Subtotal: ${subtotal:.2f}", expanded=True):
+        
+        st.number_input(
+            f"Ingresar cantidad:", 
+            min_value=0.0, 
+            step=0.01, 
+            value=None, 
+            placeholder="0.00",
+            key=f"input_{cat}"
+        )
+        
+        st.button(
+            f"Añadir a {cat}", 
+            key=f"btn_{cat}", 
+            on_click=guardar_y_limpiar, 
+            args=(cat,)
+        )
+
+        for i, m in enumerate(montos):
+            col1, col2 = st.columns([4, 1])
+            col1.write(f"Pago {i+1}: **${m:.2f}**")
+            if col2.button("🗑️", key=f"del_{cat}_{i}"):
+                st.session_state.ventas[cat].pop(i)
+                st.rerun()
     
+    # Suma solo Efectivo y Retiros para la Ficha Santander
     if cat in ["Efectivo", "Retiros"]:
         suma_santander += subtotal
 
-    with st.expander(f"📊 {cat} - Subtotal: ${subtotal:.2f}"):
-        nuevo_monto = st.number_input(f"Cantidad:", min_value=0.0, step=0.01, key=f"in_{cat}")
-        
-        if st.button(f"Añadir a {cat}", key=f"btn_{cat}"):
-            if nuevo_monto > 0:
-                datos_ventas[cat].append(nuevo_monto)
-                cookies["ventas_v2"] = datos_ventas # Actualizamos la cookie
-                cookies.save()
-                st.rerun()
+st.markdown("---")
 
-        for i, m in enumerate(montos):
-            c1, c2 = st.columns([4, 1])
-            c1.write(f"Pago {i+1}: **${m:.2f}**")
-            if c2.button("🗑️", key=f"del_{cat}_{i}"):
-                datos_ventas[cat].pop(i)
-                cookies["ventas_v2"] = datos_ventas
-                cookies.save()
-                st.rerun()
+# Métrica final
+st.metric(label="Total Ficha Santander del turno", value=f"${suma_santander:.2f}")
 
 st.markdown("---")
-st.metric(label="Total Ficha Santander", value=f"${suma_santander:.2f}")
 
-if st.button("LIMPIAR TURNO COMPLETO"):
-    cookies["ventas_v2"] = {c: [] for c in datos_ventas}
-    cookies.save()
+if st.button("LIMPIAR", key="reset_all"):
+    for cat in st.session_state.ventas:
+        st.session_state.ventas[cat] = []
     st.rerun()
+
+# Pie de página oficial
+st.markdown('<p class="footer-text">v1.0 - Herramienta Interna Champlitte</p>', unsafe_allow_html=True)
