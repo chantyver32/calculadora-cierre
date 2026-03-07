@@ -1,9 +1,13 @@
 import streamlit as st
 import urllib.parse
 from datetime import datetime
+import pytz
 
 # ------------------ CONFIGURACIÓN ------------------
 st.set_page_config(page_title="Cierre Champlitte", layout="centered")
+
+# Zona horaria CDMX
+zona_mx = pytz.timezone('America/Mexico_City')
 
 # CSS: Diseño Oscuro Pro
 st.markdown("""
@@ -30,12 +34,8 @@ st.markdown("""
         margin-bottom: 5px;
     }
     
-    /* Hover de botones */
     .stButton>button:hover { border-color: #90ee90 !important; background-color: #262626 !important; }
-
-    /* Estilo de métricas */
     [data-testid="stMetricValue"] { color: #90ee90 !important; font-size: 2.5rem !important; }
-    
     .footer-text { color: #666; font-size: 0.8rem; margin-top: 30px; text-align: center; }
     </style>
     """, unsafe_allow_html=True)
@@ -44,28 +44,28 @@ st.markdown("""
 if 'ventas' not in st.session_state:
     st.session_state.ventas = []
 
-# Categorías con sus iconos
+# Categorías en el ORDEN ESPECÍFICO solicitado
 categorias = {
-    "💵 Efectivo": "Efectivo",
-    "🏧 Retiro": "Retiros",
-    "🔗 Transf. Liga": "Transferencia Liga",
-    "💳 T. Débito": "Tarjeta Débito",
-    "💳 T. Crédito": "Tarjeta Crédito",
+    "💳 Tarjeta Débito": "Tarjeta Débito",
+    "💳 Tarjeta Crédito": "Tarjeta Crédito",
     "🚗 Uber": "Uber",
     "🛵 Didi": "Didi",
-    "📦 Rappi": "Rappi"
+    "📦 Rappi": "Rappi",
+    "🔗 Transf. Liga": "Transferencia Liga"
 }
 
 # ------------------ FUNCIONES DE LOGICA ------------------
 def registrar_pago(cat_key):
     monto = st.session_state.monto_actual
     if monto and monto > 0:
+        # Obtener hora actual de CDMX
+        hora_cdmx = datetime.now(zona_mx).strftime("%H:%M:%S")
         st.session_state.ventas.append({
             "categoria": cat_key,
             "monto": monto,
-            "hora": datetime.now().strftime("%H:%M:%S")
+            "hora": hora_cdmx
         })
-        # REINICIO A CERO/VACÍO:
+        # REINICIO A VACÍO
         st.session_state.monto_actual = None
         st.toast(f"✅ Registrado ${monto:.2f} en {cat_key}")
     else:
@@ -77,17 +77,15 @@ tab1, tab2 = st.tabs(["📝 REGISTRO", "📊 RESUMEN INDIVIDUAL"])
 with tab1:
     st.title("💰 Corte Champlitte")
     
-    # CAMPO ÚNICO: Inicia vacío (value=None) para escribir rápido
+    # Campo vacío para escribir rápido
     st.number_input("Monto a registrar:", min_value=0.0, step=0.01, value=None, 
                     format="%.2f", key="monto_actual", placeholder="0.00")
 
     st.write("### Clasificar pago:")
     
-    # GRILLA DE BOTONES
-    cols = st.columns(2)
-    for i, (label, key) in enumerate(categorias.items()):
-        with cols[i % 2]:
-            st.button(label, key=f"btn_{key}", on_click=registrar_pago, args=(key,), use_container_width=True)
+    # Botones en el orden pedido
+    for label, key in categorias.items():
+        st.button(label, key=f"btn_{key}", on_click=registrar_pago, args=(key,), use_container_width=True)
 
 with tab2:
     st.header("📊 Detalle del Turno")
@@ -95,19 +93,12 @@ with tab2:
     if not st.session_state.ventas:
         st.info("No hay registros todavía.")
     else:
-        # Cálculos de Totales
-        totales_por_cat = {}
-        for v in st.session_state.ventas:
-            cat = v["categoria"]
-            totales_por_cat[cat] = totales_por_cat.get(cat, 0) + v["monto"]
-        
-        # Ficha Santander
-        ficha_s = totales_por_cat.get("Efectivo", 0) - totales_por_cat.get("Retiros", 0)
-        
-        st.metric("Total Ficha Santander", f"${ficha_s:.2f}")
+        # Calcular total acumulado
+        total_turno = sum(v["monto"] for v in st.session_state.ventas)
+        st.metric("Venta Total Registrada", f"${total_turno:.2f}")
         st.divider()
 
-        # DESPLIEGUE INDIVIDUAL POR CATEGORÍA
+        # Desglose individual
         for label, key in categorias.items():
             pagos_cat = [v for v in st.session_state.ventas if v["categoria"] == key]
             subtotal = sum(p["monto"] for p in pagos_cat)
@@ -116,12 +107,10 @@ with tab2:
                 with st.expander(f"{label} - Total: ${subtotal:.2f}"):
                     for i, p in enumerate(pagos_cat):
                         c1, c2 = st.columns([3, 1])
-                        c1.write(f"Pago {i+1} ({p['hora']})")
+                        c1.write(f"Registro {i+1} ({p['hora']})")
                         c2.write(f"**${p['monto']:.2f}**")
                     
-                    # Opción para borrar el último de esta categoría si hubo error
                     if st.button(f"Deshacer último {key}", key=f"undo_{key}"):
-                        # Buscar el índice del último registro de esta categoría y eliminarlo
                         for idx in reversed(range(len(st.session_state.ventas))):
                             if st.session_state.ventas[idx]["categoria"] == key:
                                 st.session_state.ventas.pop(idx)
@@ -129,22 +118,23 @@ with tab2:
 
         st.divider()
 
-        # --- ENVÍO A WHATSAPP ---
-        if st.button("📲 ENVIAR REPORTE FINAL", use_container_width=True, type="primary"):
-            mensaje = "💰 *CORTE CHAMPLITTE*\n\n"
+        # Enviar a WhatsApp
+        if st.button("📲 ENVIAR REPORTE A WA", use_container_width=True, type="primary"):
+            fecha_cdmx = datetime.now(zona_mx).strftime("%d/%m/%Y")
+            mensaje = f"💰 *CORTE CHAMPLITTE* ({fecha_cdmx})\n\n"
             for label, key in categorias.items():
                 total_cat = sum(v["monto"] for v in st.session_state.ventas if v["categoria"] == key)
                 if total_cat > 0:
                     mensaje += f"• *{key}:* ${total_cat:.2f}\n"
-            mensaje += f"\n🏦 *Ficha Santander:* ${ficha_s:.2f}"
+            mensaje += f"\n📈 *TOTAL:* ${total_turno:.2f}"
             
             num = "522283530069"
             url = f"https://wa.me/{num}?text={urllib.parse.quote(mensaje)}"
             st.markdown(f'<meta http-equiv="refresh" content="0;URL={url}">', unsafe_allow_html=True)
 
-        # --- BORRAR TODO ---
-        if st.button("🚨 REINICIAR TODO EL TURNO", use_container_width=True):
+        # Reiniciar
+        if st.button("🚨 REINICIAR TURNO", use_container_width=True):
             st.session_state.ventas = []
             st.rerun()
 
-st.markdown('<p class="footer-text">v2.1 - Champlitte Registro Rápido</p>', unsafe_allow_html=True)
+st.markdown('<p class="footer-text">v2.2 - Champlitte CDMX</p>', unsafe_allow_html=True)
