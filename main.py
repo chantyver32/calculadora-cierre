@@ -25,6 +25,18 @@ hora TEXT)
 
 conn.commit()
 
+# ------------------ FUNCIONES DB ------------------
+
+def eliminar_movimiento(id_mov):
+    c.execute("DELETE FROM ventas WHERE id=?", (id_mov,))
+    conn.commit()
+    st.rerun()
+
+def editar_movimiento(id_mov, nuevo_monto):
+    c.execute("UPDATE ventas SET monto=? WHERE id=?", (nuevo_monto, id_mov))
+    conn.commit()
+    st.rerun()
+
 # ------------------ CSS ------------------
 
 st.markdown("""
@@ -90,6 +102,13 @@ text-align:center;
 font-size:2.5rem;
 margin:0;
 color:#90ee90;
+}
+
+.mov-row{
+background:#1e1e1e;
+padding:10px;
+border-radius:8px;
+margin-bottom:6px;
 }
 
 </style>
@@ -178,7 +197,7 @@ with tab2:
     st.header("📊 Resumen")
 
     datos = c.execute(
-    "SELECT id,categoria,monto,hora FROM ventas"
+    "SELECT id,categoria,monto,hora FROM ventas ORDER BY id DESC"
     ).fetchall()
 
     if not datos:
@@ -200,13 +219,34 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
 
-        for label,key in categorias:
+        st.subheader("Movimientos")
 
-            subtotal = sum(d[2] for d in datos if d[1]==key)
+        for mov in datos:
 
-            if subtotal>0:
+            id_mov = mov[0]
+            categoria = mov[1]
+            monto = mov[2]
+            hora = mov[3]
 
-                st.write(f"**{label} — ${subtotal:.2f}**")
+            col1,col2,col3,col4 = st.columns([3,2,1,1])
+
+            with col1:
+                st.write(f"**{categoria}**")
+
+            with col2:
+                nuevo = st.number_input(
+                    "Monto",
+                    value=float(monto),
+                    key=f"edit_{id_mov}"
+                )
+
+            with col3:
+                if st.button("💾", key=f"save_{id_mov}"):
+                    editar_movimiento(id_mov, nuevo)
+
+            with col4:
+                if st.button("🗑️", key=f"del_{id_mov}"):
+                    eliminar_movimiento(id_mov)
 
         st.divider()
 
