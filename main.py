@@ -23,241 +23,147 @@ categoria TEXT,
 monto REAL,
 hora TEXT)
 """)
-
 conn.commit()
 
 # ------------------ CSS ------------------
 
 st.markdown("""
 <style>
-
 header {visibility:hidden;}
 footer {visibility:hidden;}
-
-.stApp{
-background:#121212;
-color:white;
-}
-
+.stApp{ background:#121212; color:white; }
 input{
-background:#000!important;
-color:#90ee90!important;
-font-size:2rem!important;
-text-align:center!important;
-border-radius:12px!important;
-border:2px solid #444!important;
+    background:#000!important; color:#90ee90!important;
+    font-size:2rem!important; text-align:center!important;
+    border-radius:12px!important; border:2px solid #444!important;
 }
-
-[data-testid="column"]{
-width:calc(50% - 1rem)!important;
-flex:1 1 calc(50% - 1rem)!important;
-min-width:calc(50% - 1rem)!important;
-}
-
 .stButton>button{
-width:100%;
-border-radius:10px;
-padding:16px;
-background:#1e1e1e!important;
-color:white!important;
-font-size:1rem!important;
-border:1px solid #333!important;
-margin-bottom:6px;
+    width:100%; border-radius:10px; padding:16px;
+    background:#1e1e1e!important; color:white!important;
+    font-size:0.9rem!important; border:1px solid #333!important;
 }
-
-.stButton>button:hover{
-border-color:#90ee90!important;
-background:#262626!important;
-}
-
+.stButton>button:hover{ border-color:#90ee90!important; background:#262626!important; }
 .confirm{
-background:#1e1e1e;
-padding:15px;
-border-radius:10px;
-border-left:5px solid #90ee90;
-margin-top:15px;
+    background:#1e1e1e; padding:15px; border-radius:10px;
+    border-left:5px solid #90ee90; margin-top:15px;
 }
-
 .total-card{
-background:#1b1b1b;
-padding:20px;
-border-radius:14px;
-border-left:5px solid #90ee90;
-margin-bottom:20px;
-text-align:center;
+    background:#1b1b1b; padding:20px; border-radius:14px;
+    border-left:5px solid #90ee90; margin-bottom:20px; text-align:center;
 }
-
-.total-card h1{
-font-size:2.5rem;
-margin:0;
-color:#90ee90;
-}
-
+.total-card h1{ font-size:2.5rem; margin:0; color:#90ee90; }
 </style>
 """, unsafe_allow_html=True)
 
-# ------------------ CATEGORÍAS ------------------
+# ------------------ ORDEN Y CATEGORÍAS ------------------
 
-categorias = [
-("💳 T. Débito","Tarjeta Débito"),
-("💳 T. Crédito","Tarjeta Crédito"),
-("🚗 Uber","Uber"),
-("🛵 Didi","Didi"),
-("📦 Rappi","Rappi"),
-("🔗 Transf. Liga","Transferencia Liga")
+# Definición del orden estricto solicitado
+ORDEN_CATEGORIAS = [
+    "Tarjeta Débito", 
+    "Tarjeta Crédito", 
+    "Uber", 
+    "Didi", 
+    "Rappi", 
+    "Transferencia Liga"
 ]
 
-# ------------------ FUNCIÓN REGISTRAR ------------------
+labels_botones = [
+    ("💳 T. Débito", "Tarjeta Débito"),
+    ("💳 T. Crédito", "Tarjeta Crédito"),
+    ("🚗 Uber", "Uber"),
+    ("🛵 Didi", "Didi"),
+    ("📦 Rappi", "Rappi"),
+    ("🔗 Transf. Liga", "Transferencia Liga")
+]
+
+# ------------------ LOGICA ------------------
 
 def registrar_pago(cat):
-
     monto = st.session_state.monto_actual
-
     if monto and monto > 0:
-
         hora = datetime.now(zona_mx).strftime("%H:%M:%S")
-
-        c.execute(
-        "INSERT INTO ventas (categoria,monto,hora) VALUES (?,?,?)",
-        (cat,monto,hora)
-        )
-
+        c.execute("INSERT INTO ventas (categoria,monto,hora) VALUES (?,?,?)", (cat,monto,hora))
         conn.commit()
-
         st.session_state.confirmacion = f"""
         <div class="confirm">
-        ✅ <b>Registrado:</b> ${monto:.2f}<br>
-        💳 <b>Método:</b> {cat}<br>
-        🕒 <b>Hora:</b> {hora}
+        ✅ <b>{cat}:</b> ${monto:.2f} | 🕒 {hora}
         </div>
         """
-
         st.session_state.monto_actual = None
 
-# ------------------ TABS ------------------
+# ------------------ INTERFAZ (TABS) ------------------
 
-tab1,tab2 = st.tabs(["📝 REGISTRO","📊 RESUMEN"])
-
-# ------------------ REGISTRO ------------------
+tab1, tab2 = st.tabs(["📝 REGISTRO", "📊 RESUMEN"])
 
 with tab1:
-
-    st.title("💰 Corte Champlitte")
-
-    st.number_input(
-    "Monto",
-    min_value=0.0,
-    step=0.01,
-    value=None,
-    format="%.2f",
-    key="monto_actual",
-    placeholder="0.00"
-    )
-
-    st.write("### Seleccionar método")
-
-    for i in range(0,len(categorias),2):
-
-        col1,col2 = st.columns(2)
-
+    st.number_input("Monto", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_actual", placeholder="0.00")
+    
+    # Grid de botones 3x2
+    for i in range(0, len(labels_botones), 2):
+        col1, col2 = st.columns(2)
         with col1:
-            label,key = categorias[i]
-            st.button(label, on_click=registrar_pago, args=(key,))
-
+            label, key = labels_botones[i]
+            st.button(label, on_click=registrar_pago, args=(key,), key=f"btn_{i}")
         with col2:
-            if i+1 < len(categorias):
-                label,key = categorias[i+1]
-                st.button(label, on_click=registrar_pago, args=(key,))
+            if i+1 < len(labels_botones):
+                label, key = labels_botones[i+1]
+                st.button(label, on_click=registrar_pago, args=(key,), key=f"btn_{i+1}")
 
     if "confirmacion" in st.session_state:
         st.markdown(st.session_state.confirmacion, unsafe_allow_html=True)
 
-# ------------------ RESUMEN ------------------
-
 with tab2:
-
-    st.header("📊 Resumen")
-
-    datos = c.execute(
-        "SELECT id,categoria,monto,hora FROM ventas ORDER BY id DESC"
-    ).fetchall()
-
+    datos = c.execute("SELECT categoria, monto, hora FROM ventas").fetchall()
+    
     if not datos:
-
         st.info("Sin registros")
-
     else:
+        df = pd.DataFrame(datos, columns=["categoria", "monto", "hora"])
+        
+        # Tabla de edición (Sin ID)
+        st.write("### Movimientos")
+        edited_df = st.data_editor(df, use_container_width=True, hide_index=True, num_rows="dynamic")
 
-        df = pd.DataFrame(datos, columns=["id","categoria","monto","hora"])
-
-        st.subheader("Editar movimientos")
-
-        edited_df = st.data_editor(
-            df,
-            use_container_width=True,
-            hide_index=True,
-            num_rows="dynamic"
-        )
-
-        col1,col2 = st.columns(2)
-
-        with col1:
-            if st.button("💾 Guardar cambios", use_container_width=True):
-
-                c.execute("DELETE FROM ventas")
-
-                for _,row in edited_df.iterrows():
-
-                    c.execute(
-                    "INSERT INTO ventas (categoria,monto,hora) VALUES (?,?,?)",
-                    (row["categoria"],row["monto"],row["hora"])
-                    )
-
-                conn.commit()
-
-                st.success("Cambios guardados")
-
-                st.rerun()
-
-        with col2:
-            if st.button("🗑️ Borrar todo", use_container_width=True):
-
-                c.execute("DELETE FROM ventas")
-                conn.commit()
-                st.rerun()
+        c1, c2 = st.columns(2)
+        if c1.button("💾 Guardar", use_container_width=True):
+            c.execute("DELETE FROM ventas")
+            for _, row in edited_df.iterrows():
+                c.execute("INSERT INTO ventas (categoria, monto, hora) VALUES (?,?,?)", 
+                         (row["categoria"], row["monto"], row["hora"]))
+            conn.commit()
+            st.rerun()
+        if c2.button("🗑️ Borrar Todo", use_container_width=True):
+            c.execute("DELETE FROM ventas")
+            conn.commit()
+            st.rerun()
 
         st.divider()
 
-        # -------- TOTALES --------
+        # Resumen ordenado según ORDEN_CATEGORIAS
+        st.write("### Totales por Categoría")
+        
+        mensaje = f"💰 *CORTE CHAMPLITTE* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
+        total_general = 0
 
-        total_debito = edited_df[edited_df["categoria"]=="Tarjeta Débito"]["monto"].sum()
-        total_credito = edited_df[edited_df["categoria"]=="Tarjeta Crédito"]["monto"].sum()
-
-        total_tarjetas = total_debito + total_credito
-
+        # Iterar en el orden específico
+        for cat in ORDEN_CATEGORIAS:
+            monto_cat = edited_df[edited_df["categoria"] == cat]["monto"].sum()
+            if monto_cat > 0:
+                st.write(f"**{cat}:** ${monto_cat:.2f}")
+                mensaje += f"• *{cat}:* ${monto_cat:.2f}\n"
+                total_general += monto_cat
+        
+        # Tarjeta de total principal (Tarjetas)
+        t_deb = edited_df[edited_df["categoria"] == "Tarjeta Débito"]["monto"].sum()
+        t_cre = edited_df[edited_df["categoria"] == "Tarjeta Crédito"]["monto"].sum()
+        
         st.markdown(f"""
         <div class="total-card">
         <p>💳 TOTAL TARJETAS</p>
-        <h1>${total_tarjetas:.2f}</h1>
-        <p>Débito ${total_debito:.2f} • Crédito ${total_credito:.2f}</p>
+        <h1>${(t_deb + t_cre):.2f}</h1>
         </div>
         """, unsafe_allow_html=True)
 
-        # -------- WHATSAPP --------
-
-        fecha = datetime.now(zona_mx).strftime("%d/%m/%Y")
-
-        mensaje = f"💰 *CORTE CHAMPLITTE* ({fecha})\n\n"
-
-        for cat in edited_df["categoria"].unique():
-
-            total = edited_df[edited_df["categoria"]==cat]["monto"].sum()
-
-            if total > 0:
-                mensaje += f"• *{cat}:* ${total:.2f}\n"
-
-        numero = "522283530069"
-
-        url = f"https://wa.me/{numero}?text={urllib.parse.quote(mensaje)}"
-
-        st.link_button("📲 ENVIAR REPORTE", url, use_container_width=True)
+        # Botón WhatsApp
+        url_wa = f"https://wa.me/522283530069?text={urllib.parse.quote(mensaje)}"
+        st.link_button("📲 ENVIAR REPORTE", url_wa, use_container_width=True)
