@@ -5,12 +5,14 @@ import pytz
 import sqlite3
 
 # ------------------ CONFIGURACIÓN ------------------
+
 st.set_page_config(page_title="Cierre Champlitte", layout="centered")
 
-zona_mx = pytz.timezone('America/Mexico_City')
+zona_mx = pytz.timezone("America/Mexico_City")
 
 # ------------------ BASE DE DATOS ------------------
-conn = sqlite3.connect('corte_champlitte.db', check_same_thread=False)
+
+conn = sqlite3.connect("corte_champlitte.db", check_same_thread=False)
 c = conn.cursor()
 
 c.execute("""
@@ -23,19 +25,23 @@ hora TEXT)
 
 conn.commit()
 
+# ------------------ ESTADO APP ------------------
+
+if "mostrar_selector" not in st.session_state:
+    st.session_state.mostrar_selector = False
+
 # ------------------ CSS ------------------
+
 st.markdown("""
 <style>
 
-header {visibility: hidden;}
-footer {visibility: hidden;}
+header {visibility:hidden;}
+footer {visibility:hidden;}
 
 .stApp{
 background:#121212;
 color:white;
 }
-
-/* INPUT GRANDE */
 
 input{
 background:#000!important;
@@ -46,33 +52,27 @@ border-radius:15px!important;
 border:2px solid #444!important;
 }
 
-/* GRID MOVIL */
-
 [data-testid="column"]{
 width:calc(50% - 1rem)!important;
 flex:1 1 calc(50% - 1rem)!important;
 min-width:calc(50% - 1rem)!important;
 }
 
-/* BOTONES */
-
 .stButton>button{
 width:100%;
 border-radius:10px;
-padding:15px 5px;
+padding:16px;
 background:#1e1e1e!important;
 color:white!important;
-font-size:0.9rem!important;
+font-size:1rem!important;
 border:1px solid #333!important;
-margin-bottom:4px;
+margin-bottom:6px;
 }
 
 .stButton>button:hover{
 border-color:#90ee90!important;
 background:#262626!important;
 }
-
-/* TARJETA TOTAL */
 
 .total-card{
 background:#1b1b1b;
@@ -94,6 +94,14 @@ margin:0;
 color:#aaa;
 }
 
+.selector-box{
+background:#1e1e1e;
+padding:20px;
+border-radius:12px;
+margin-top:20px;
+border:1px solid #333;
+}
+
 .footer-text{
 color:#666;
 font-size:0.8rem;
@@ -107,19 +115,17 @@ text-align:center;
 # ------------------ CATEGORIAS ------------------
 
 categorias = [
-
 ("💳 T. Débito","Tarjeta Débito"),
 ("💳 T. Crédito","Tarjeta Crédito"),
 ("🚗 Uber","Uber"),
 ("🛵 Didi","Didi"),
 ("📦 Rappi","Rappi"),
 ("🔗 Transf. Liga","Transferencia Liga")
-
 ]
 
 # ------------------ FUNCIONES ------------------
 
-def registrar_pago(cat_key):
+def registrar_pago(cat):
 
     monto = st.session_state.monto_actual
 
@@ -129,39 +135,30 @@ def registrar_pago(cat_key):
 
         c.execute(
         "INSERT INTO ventas (categoria,monto,hora) VALUES (?,?,?)",
-        (cat_key,monto,hora)
+        (cat,monto,hora)
         )
 
         conn.commit()
 
         st.session_state.monto_actual=None
+        st.session_state.mostrar_selector=False
 
-        st.toast(f"✅ {cat_key} ${monto:.2f}")
+        st.toast(f"✅ {cat} ${monto:.2f}")
 
-    else:
-
-        st.error("Monto inválido")
-
-
-def borrar_ultimo(cat_key):
+def borrar_ultimo(cat):
 
     c.execute(
     "DELETE FROM ventas WHERE id=(SELECT MAX(id) FROM ventas WHERE categoria=?)",
-    (cat_key,)
+    (cat,)
     )
 
     conn.commit()
-
-# ------------------ ESTADO MODAL ------------------
-
-if "abrir_modal" not in st.session_state:
-    st.session_state.abrir_modal=False
 
 # ------------------ TABS ------------------
 
 tab1,tab2=st.tabs(["📝 REGISTRO","📊 RESUMEN"])
 
-# ------------------ TAB REGISTRO ------------------
+# ------------------ REGISTRO ------------------
 
 with tab1:
 
@@ -180,54 +177,38 @@ with tab1:
     if st.button("➕ Registrar monto",use_container_width=True):
 
         if st.session_state.monto_actual and st.session_state.monto_actual>0:
-
-            st.session_state.abrir_modal=True
-
+            st.session_state.mostrar_selector=True
         else:
+            st.warning("Ingresa un monto")
 
-            st.warning("Ingresa un monto primero")
+    # -------- SELECTOR TIPO POPUP --------
 
-# ------------------ MODAL ------------------
+    if st.session_state.mostrar_selector:
 
-if st.session_state.abrir_modal:
+        st.markdown('<div class="selector-box">', unsafe_allow_html=True)
 
-    with st.modal("¿A dónde va este monto? 💰"):
+        st.subheader("¿A dónde va este monto?")
 
-        st.write(f"Monto: **${st.session_state.monto_actual:.2f}**")
-
-        st.divider()
+        st.write(f"💰 **${st.session_state.monto_actual:.2f}**")
 
         for i in range(0,len(categorias),2):
 
             col1,col2=st.columns(2)
 
             with col1:
-
                 label,key=categorias[i]
-
-                if st.button(label,key=f"modal_{key}"):
-
+                if st.button(label,key=f"cat_{key}"):
                     registrar_pago(key)
 
-                    st.session_state.abrir_modal=False
-
-                    st.rerun()
-
             with col2:
-
                 if i+1<len(categorias):
-
                     label,key=categorias[i+1]
-
-                    if st.button(label,key=f"modal_{key}"):
-
+                    if st.button(label,key=f"cat_{key}"):
                         registrar_pago(key)
 
-                        st.session_state.abrir_modal=False
+        st.markdown("</div>", unsafe_allow_html=True)
 
-                        st.rerun()
-
-# ------------------ TAB RESUMEN ------------------
+# ------------------ RESUMEN ------------------
 
 with tab2:
 
@@ -238,8 +219,7 @@ with tab2:
     ).fetchall()
 
     if not datos:
-
-        st.info("Sin registros.")
+        st.info("Sin registros")
 
     else:
 
@@ -258,21 +238,19 @@ with tab2:
 
         for label,key in categorias:
 
-            pagos_cat=[d for d in datos if d[1]==key]
+            pagos=[d for d in datos if d[1]==key]
+            subtotal=sum(p[2] for p in pagos)
 
-            subtotal=sum(p[2] for p in pagos_cat)
-
-            if pagos_cat:
+            if pagos:
 
                 with st.expander(f"{label}: ${subtotal:.2f}"):
 
-                    for p in pagos_cat:
+                    for p in pagos:
 
                         c1,c2=st.columns(2)
 
                         c1.write(f"Hora: {p[3]}")
-
-                        c2.write(f"**${p[2]:.2f}**")
+                        c2.write(f"${p[2]:.2f}")
 
                     st.button(
                     f"Deshacer {key}",
@@ -292,26 +270,18 @@ with tab2:
             total=sum(d[2] for d in datos if d[1]==key)
 
             if total>0:
-
                 mensaje+=f"• *{key}:* ${total:.2f}\n"
 
         numero="522283530069"
 
         url=f"https://wa.me/{numero}?text={urllib.parse.quote(mensaje)}"
 
-        st.link_button(
-        "📲 ENVIAR REPORTE",
-        url,
-        use_container_width=True,
-        type="primary"
-        )
+        st.link_button("📲 ENVIAR REPORTE",url,use_container_width=True,type="primary")
 
         if st.button("🚨 REINICIAR TURNO",use_container_width=True):
 
             c.execute("DELETE FROM ventas")
-
             conn.commit()
-
             st.rerun()
 
 st.markdown(
