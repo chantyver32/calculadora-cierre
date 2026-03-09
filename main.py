@@ -1,195 +1,190 @@
 import streamlit as st
-import pandas as pd
-import sqlite3
+import urllib.parse
 from datetime import datetime
 import pytz
-import urllib.parse
+import sqlite3
 import time
 
-# ------------------ CONFIGURACIÓN GENERAL ------------------
+# ------------------ CONFIGURACIÓN ------------------
+st.set_page_config(page_title="Sistema Champlitte", layout="centered")
 
-with st.spinner('Iniciando sistema Champlitte... 🥐'):
-    zona_mx = pytz.timezone('America/Mexico_City')
-    fecha_hoy_mx = datetime.now(zona_mx).date()
-    numero_whatsapp = "522283530069"
+# Zona horaria CDMX
+zona_mx = pytz.timezone('America/Mexico_City')
+numero_whatsapp = "522283530069"
 
-st.set_page_config(page_title="Inventario Champlitte MX", page_icon="🥐", layout="wide")
-
-# ------------------ BASE DE DATOS ------------------
-
-conn = sqlite3.connect('inventario_pan.db', check_same_thread=False)
+# --- BASE DE DATOS ---
+conn = sqlite3.connect('corte_champlitte.db', check_same_thread=False)
 c = conn.cursor()
-
-c.execute('CREATE TABLE IF NOT EXISTS captura_actual (nombre TEXT, fecha_cad DATE, cantidad INTEGER)')
-c.execute('CREATE TABLE IF NOT EXISTS base_anterior (nombre TEXT, fecha_cad DATE, cantidad INTEGER)')
-c.execute('''CREATE TABLE IF NOT EXISTS historial_ventas (
-    nombre TEXT, fecha_cad DATE, habia INTEGER, quedan INTEGER, vendidos INTEGER, fecha_corte DATETIME
-)''')
+c.execute('''CREATE TABLE IF NOT EXISTS ventas 
+             (id INTEGER PRIMARY KEY AUTOINCREMENT, categoria TEXT, monto REAL, hora TEXT)''')
 conn.commit()
 
+# --- ESTILO CSS (Interfaz Oscura / Botones Grandes) ---
+st.markdown("""
+    <style>
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stApp { background-color: #121212; color: white; }
+    
+    /* Input gigante */
+    input { 
+        background-color: #000000 !important; 
+        color: #90ee90 !important; 
+        font-size: 2.2rem !important;
+        text-align: center !important;
+        border: 2px solid #444 !important;
+        border-radius: 15px !important;
+    }
+
+    /* Botones de categorías y calculadora */
+    .stButton>button { 
+        width: 100%; border-radius: 12px; padding: 20px 10px;
+        background-color: #1e1e1e !important; color: white !important;
+        font-size: 1rem !important; border: 1px solid #333 !important;
+        font-weight: bold;
+    }
+    
+    .stButton>button:hover { border-color: #90ee90 !important; background-color: #262626 !important; }
+    
+    /* Estilo especial para el resultado de la calculadora */
+    .calc-display {
+        background-color: #000;
+        color: #ff9f0a;
+        padding: 15px;
+        font-size: 2.5rem;
+        text-align: right;
+        border-radius: 10px;
+        border: 1px solid #444;
+        margin-bottom: 10px;
+        font-family: monospace;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# Categorías
+categorias = [
+    ("💳 T. Débito", "Tarjeta Débito"),
+    ("💳 T. Crédito", "Tarjeta Crédito"),
+    ("🚗 Uber", "Uber"),
+    ("🛵 Didi", "Didi"),
+    ("📦 Rappi", "Rappi"),
+    ("🔗 Transf. Liga", "Transferencia Liga")
+]
+
 # ------------------ FUNCIONES ------------------
+def registrar_pago(cat_key):
+    monto = st.session_state.monto_actual
+    if monto and monto > 0:
+        hora_cdmx = datetime.now(zona_mx).strftime("%H:%M:%S")
+        c.execute("INSERT INTO ventas (categoria, monto, hora) VALUES (?, ?, ?)", (cat_key, monto, hora_cdmx))
+        conn.commit()
+        st.session_state.monto_actual = None
+        st.success(f"✅ {cat_key} guardado")
+        time.sleep(0.5)
+    else:
+        st.error("⚠️ Ingrese un monto")
 
-def sonido_click():
-    st.markdown("""<audio autoplay><source src="https://www.soundjay.com/buttons/sounds/button-16.mp3" type="audio/mpeg"></audio>""", unsafe_allow_html=True)
-
-def sumar(valor):
-    st.session_state.conteo_temp += valor
-    sonido_click()
-
-def resetear():
-    st.session_state.conteo_temp = 0
-    sonido_click()
-
-# ------------------ SIDEBAR RESET ------------------
-
-st.sidebar.header("⚙️ Configuración")
-with st.sidebar.expander("🚨 Zona de Peligro"):
-    confirmar_reset = st.checkbox("Confirmar borrar todo")
-    if st.button("⚠️ RESET TOTAL"):
-        if confirmar_reset:
-            c.execute("DELETE FROM captura_actual"); c.execute("DELETE FROM base_anterior"); c.execute("DELETE FROM historial_ventas")
-            conn.commit()
-            st.sidebar.success("✅ Datos borrados"); time.sleep(1); st.rerun()
+def calculadora_func(tecla):
+    if "calc_val" not in st.session_state: st.session_state.calc_val = ""
+    
+    if tecla == "=":
+        try:
+            # Evaluar la expresión matemática
+            res = eval(st.session_state.calc_val.replace('x', '*').replace('÷', '/'))
+            st.session_state.calc_val = str(res)
+        except:
+            st.session_state.calc_val = "Error"
+    elif tecla == "C":
+        st.session_state.calc_val = ""
+    else:
+        st.session_state.calc_val += str(tecla)
 
 # ------------------ TABS ------------------
+tab1, tab2, tab3 = st.tabs(["📝 REGISTRO", "📊 CORTE TARJETAS", "🧮 CALCULADORA"])
 
-tab1, tab2, tab3, tab4 = st.tabs(["📝 Conteo", "📦 Inventario y Corte", "📊 Análisis", "🧮 Calculadora"])
-
-# ------------------------------------------------------------
-# TAB 1: CONTEO
-# ------------------------------------------------------------
+# TAB 1: REGISTRO DE VENTAS
 with tab1:
-    if "conteo_temp" not in st.session_state: st.session_state.conteo_temp = 0
-    
-    col_busq, col_limpiar = st.columns([4,1])
-    with col_busq:
-        buscar = st.text_input("Buscar", placeholder="🔎 BUSCAR PRODUCTO...", key="buscar_prod", label_visibility="collapsed").upper()
-    with col_limpiar:
-        if st.button("Sweep", use_container_width=True): st.session_state.buscar_prod = ""; st.rerun()
+    st.title("💰 Cierre Champlitte")
+    st.number_input("Monto:", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_actual", placeholder="0.00")
 
-    nombres_prev = [r[0] for r in c.execute("SELECT nombre FROM base_anterior UNION SELECT nombre FROM captura_actual").fetchall()]
-    sugerencias = [p for p in nombres_prev if buscar in p] if buscar else nombres_prev
+    st.write("### Clasificar:")
+    for i in range(0, len(categorias), 2):
+        col1, col2 = st.columns(2)
+        with col1:
+            label, key = categorias[i]
+            st.button(label, key=f"btn_{key}", on_click=registrar_pago, args=(key,))
+        with col2:
+            if i + 1 < len(categorias):
+                label, key = categorias[i+1]
+                st.button(label, key=f"btn_{key}", on_click=registrar_pago, args=(key,))
 
-    col1, col2 = st.columns([2,1])
-    with col1:
-        nombre_input = st.selectbox("Producto", sugerencias) if sugerencias else buscar
-    with col2:
-        f_cad = st.date_input("Caducidad", value=fecha_hoy_mx)
-
-    c1, c2, c3, c4 = st.columns(4)
-    with c1: st.button("+1", use_container_width=True, on_click=sumar, args=(1,))
-    with c2: st.button("+5", use_container_width=True, on_click=sumar, args=(5,))
-    with c3: st.button("+10", use_container_width=True, on_click=sumar, args=(10,))
-    with c4: st.button("Borrar", use_container_width=True, on_click=resetear)
-
-    st.metric("A registrar", st.session_state.conteo_temp)
-
-    if st.button("➕ Registrar en Inventario", use_container_width=True, type="primary"):
-        if nombre_input:
-            nombre_final = str(nombre_input).strip().upper()
-            existe = c.execute("SELECT cantidad FROM captura_actual WHERE nombre=? AND fecha_cad=?", (nombre_final, str(f_cad))).fetchone()
-            if existe:
-                c.execute("UPDATE captura_actual SET cantidad=cantidad+? WHERE nombre=? AND fecha_cad=?", (int(st.session_state.conteo_temp), nombre_final, str(f_cad)))
-            else:
-                c.execute("INSERT INTO captura_actual VALUES (?,?,?)", (nombre_final, str(f_cad), int(st.session_state.conteo_temp)))
-            conn.commit()
-            st.session_state.conteo_temp = 0
-            st.success(f"✅ {nombre_final} registrado")
-            time.sleep(1); st.rerun()
-
-    st.divider()
-    df_hoy = pd.read_sql("SELECT rowid, nombre, fecha_cad, cantidad FROM captura_actual", conn)
-    df_editado = st.data_editor(df_hoy, column_config={"rowid": None}, num_rows="dynamic", use_container_width=True, key="ed_conteo")
-    
-    if st.button("💾 Guardar Cambios"):
-        c.execute("DELETE FROM captura_actual")
-        for _, f in df_editado.iterrows():
-            if pd.notna(f["nombre"]): c.execute("INSERT INTO captura_actual VALUES (?,?,?)", (str(f["nombre"]).upper(), str(f["fecha_cad"]), int(f["cantidad"])))
-        conn.commit()
-        st.success("✅ Cambios guardados")
-
-# ------------------------------------------------------------
-# TAB 2: INVENTARIO Y CORTE (CON SUMA DE TARJETAS)
-# ------------------------------------------------------------
+# TAB 2: RESUMEN Y ENVÍO WA
 with tab2:
-    st.header("💳 Finanzas del Día")
-    col_t1, col_t2 = st.columns(2)
-    with col_t1:
-        t_credito = st.number_input("Crédito $", min_value=0.0, step=1.0, format="%.2f")
-    with col_t2:
-        t_debito = st.number_input("Débito $", min_value=0.0, step=1.0, format="%.2f")
+    st.header("📊 Resumen de Tarjetas")
+    datos = c.execute("SELECT categoria, monto FROM ventas").fetchall()
     
-    total_tarjetas = t_credito + t_debito
-    st.subheader(f"Total Tarjetas: ${total_tarjetas:,.2f}")
-    if st.button("Confirmar Montos", use_container_width=True):
-        st.success(f"✅ Montos confirmados: ${total_tarjetas:,.2f}")
-
-    st.divider()
-    st.header("📦 Stock Actual")
-    df_stock = pd.read_sql("SELECT nombre, fecha_cad, cantidad FROM base_anterior", conn)
+    # Calcular sumas
+    debito = sum(d[1] for d in datos if d[0] == "Tarjeta Débito")
+    credito = sum(d[1] for d in datos if d[0] == "Tarjeta Crédito")
+    total_tarjetas = debito + credito
     
-    if not df_stock.empty:
-        fechas = sorted(df_stock['fecha_cad'].unique())
-        filtro = st.multiselect("Filtrar Caducidad:", fechas, default=fechas)
-        df_stock_filt = df_stock[df_stock['fecha_cad'].isin(filtro)]
-        st.dataframe(df_stock_filt, use_container_width=True)
-
-        # REPORTE WA UNIFICADO
-        msg = f"🥐 *REPORTE CHAMPLITTE*\n\n💳 *FINANZAS:*\n- Crédito: ${t_credito}\n- Débito: ${t_debito}\n- *Total Tarjetas: ${total_tarjetas}*\n\n📦 *INVENTARIO:*\n"
-        for _, r in df_stock_filt.iterrows(): msg += f"• {r['nombre']} ({r['fecha_cad']}): {r['cantidad']} pza\n"
-        
-        st.link_button("📲 Enviar Reporte a WhatsApp", f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(msg)}", use_container_width=True, type="primary")
-
+    # Mostrar resultados estilo "Card"
+    st.markdown(f"""
+        <div style="background-color:#1e1e1e; padding:20px; border-radius:15px; border-left: 5px solid #90ee90;">
+            <p style="margin:0; font-size:1.2rem;">Total Tarjetas</p>
+            <h1 style="margin:0; color:#90ee90;">${total_tarjetas:.2f}</h1>
+            <hr>
+            <p style="margin:0;">💳 Débito: ${debito:.2f}</p>
+            <p style="margin:0;">💳 Crédito: ${credito:.2f}</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
     st.divider()
-    if st.button("🚀 PROCESAR CORTE AHORA", use_container_width=True):
-        df_act = pd.read_sql("SELECT * FROM captura_actual", conn)
-        if df_act.empty: st.warning("⚠️ Sin conteo")
-        else:
-            ts = datetime.now(zona_mx).strftime("%Y-%m-%d %H:%M:%S")
-            # Lógica de comparación simplificada para el ejemplo
-            c.execute("DELETE FROM base_anterior")
-            c.execute("INSERT INTO base_anterior SELECT * FROM captura_actual")
-            c.execute("DELETE FROM captura_actual")
+
+    # WhatsApp Reporte
+    fecha_cdmx = datetime.now(zona_mx).strftime("%d/%m/%Y")
+    txt_wa = f"🥐 *CORTE CHAMPLITTE* ({fecha_cdmx})\n\n"
+    txt_wa += f"💳 *TOTAL TARJETAS:* ${total_tarjetas:.2f}\n"
+    txt_wa += f"   • Débito: ${debito:.2f}\n"
+    txt_wa += f"   • Crédito: ${credito:.2f}\n\n"
+    
+    # Agregar otras categorías si tienen monto
+    for label, key in categorias[2:]: # Uber, Didi, etc
+        total_cat = sum(d[1] for d in datos if d[0] == key)
+        if total_cat > 0:
+            txt_wa += f"• *{key}:* ${total_cat:.2f}\n"
+
+    url_wa = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(txt_wa)}"
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.link_button("📲 ENVIAR A WA", url_wa, use_container_width=True, type="primary")
+    with col_b:
+        if st.button("🚨 BORRAR TODO"):
+            c.execute("DELETE FROM ventas")
             conn.commit()
-            st.balloons(); st.success("✅ Corte realizado"); time.sleep(1); st.rerun()
+            st.rerun()
 
-# ------------------------------------------------------------
-# TAB 3: ANÁLISIS
-# ------------------------------------------------------------
+# TAB 3: CALCULADORA BÁSICA
 with tab3:
-    df_hist = pd.read_sql("SELECT * FROM historial_ventas", conn)
-    if df_hist.empty: st.info("Sin historial")
-    else:
-        st.dataframe(df_hist, use_container_width=True)
-        st.line_chart(df_hist.groupby("fecha_corte")["vendidos"].sum())
-
-# ------------------------------------------------------------
-# TAB 4: CALCULADORA (DISEÑO INTEGRADO)
-# ------------------------------------------------------------
-with tab4:
-    st.header("🧮 Calculadora de Venta")
     if "calc_val" not in st.session_state: st.session_state.calc_val = ""
-
-    # Pantalla de la calculadora
-    st.code(st.session_state.calc_val if st.session_state.calc_val else "0", language="text")
-
-    def calc_press(char):
-        if char == "=":
-            try: st.session_state.calc_val = str(eval(st.session_state.calc_val))
-            except: st.session_state.calc_val = "Error"
-        elif char == "C": st.session_state.calc_val = ""
-        else: st.session_state.calc_val += str(char)
-        sonido_click()
-
-    # Grid de botones
-    cols = st.columns(4)
-    botones = ["7","8","9","/", "4","5","6","*", "1","2","3","-", "C","0","=","+"]
     
-    for i, b in enumerate(botones):
-        with cols[i % 4]:
-            if st.button(b, key=f"btn_{b}_{i}", use_container_width=True):
-                calc_press(b)
-                st.rerun()
+    st.markdown(f'<div class="calc-display">{st.session_state.calc_val if st.session_state.calc_val else "0"}</div>', unsafe_allow_html=True)
     
-    st.divider()
-    st.success("✅ Calculadora lista para operaciones rápidas")
+    # Grilla de la calculadora
+    botones_calc = [
+        ['7', '8', '9', '/'],
+        ['4', '5', '6', 'x'],
+        ['1', '2', '3', '-'],
+        ['C', '0', '=', '+']
+    ]
+    
+    for fila in botones_calc:
+        cols = st.columns(4)
+        for i, tecla in enumerate(fila):
+            with cols[i]:
+                if st.button(tecla, key=f"calc_{tecla}"):
+                    calculadora_func(tecla)
+                    st.rerun()
+
+st.markdown('<p style="color:#444; text-align:center; margin-top:50px;">Champlitte Pro v3.0</p>', unsafe_allow_html=True)
