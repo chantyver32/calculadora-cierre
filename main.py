@@ -223,8 +223,7 @@ with tab2:
         with st.expander("📂 Ver y Editar Todos los Movimientos"):
             edited_df = st.data_editor(df, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_tab2")
 
-            c1, c2 = st.columns(2)
-            if c1.button("💾 Guardar Cambios", use_container_width=True):
+            if st.button("💾 Guardar Cambios", use_container_width=True):
                 c.execute("DELETE FROM ventas")
                 for _, row in edited_df.iterrows():
                     if pd.notna(row["categoria"]): # Evita guardar filas vacías
@@ -233,11 +232,6 @@ with tab2:
                 conn.commit()
                 st.success("Cambios guardados.")
                 time.sleep(1)
-                st.rerun()
-                
-            if c2.button("🗑️ Borrar Todo", use_container_width=True):
-                c.execute("DELETE FROM ventas")
-                conn.commit()
                 st.rerun()
 
         st.divider()
