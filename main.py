@@ -190,7 +190,8 @@ with st.sidebar.expander("🚨 Zona de Peligro"):
 
 # ------------------ INTERFAZ (TABS) ------------------
 
-tab1, tab2, tab3 = st.tabs(["📝 REGISTRO", "📊 RESUMEN", "🧮 CALCULADORA"])
+# ¡AQUÍ ESTÁN LOS 4 TABS DEFINIDOS!
+tab1, tab2, tab3, tab4 = st.tabs(["📝 REGISTRO", "📋 EDITAR", "🧮 CALCULADORA", "📊 RESUMEN"])
 
 # --- TAB 1: REGISTRO ---
 with tab1:
@@ -210,7 +211,7 @@ with tab1:
         st.markdown(st.session_state.confirmacion, unsafe_allow_html=True)
 
 
-# --- TAB 2: RESUMEN ---
+# --- TAB 2: EDITAR (Lista Desplegable) ---
 with tab2:
     datos = c.execute("SELECT categoria, monto, hora FROM ventas").fetchall()
     
@@ -219,7 +220,7 @@ with tab2:
     else:
         df = pd.DataFrame(datos, columns=["categoria", "monto", "hora"])
         
-        # --- DESPLEGABLE EN RESUMEN ---
+        # --- DESPLEGABLE ---
         with st.expander("📂 Ver y Editar Todos los Movimientos"):
             edited_df = st.data_editor(df, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_tab2")
 
@@ -240,38 +241,11 @@ with tab2:
                 conn.commit()
                 st.rerun()
 
-        st.divider()
-
-        st.write("### Totales por Categoría")
-        
-        mensaje = f"💰 *CORTE CHAMPLITTE* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
-        total_general = 0
-
-        for cat in ORDEN_CATEGORIAS:
-            monto_cat = edited_df[edited_df["categoria"] == cat]["monto"].sum()
-            if monto_cat > 0:
-                st.write(f"**{cat}:** ${monto_cat:.2f}")
-                mensaje += f"• *{cat}:* ${monto_cat:.2f}\n"
-                total_general += monto_cat
-        
-        t_deb = edited_df[edited_df["categoria"] == "Débito"]["monto"].sum()
-        t_cre = edited_df[edited_df["categoria"] == "Crédito"]["monto"].sum()
-        
-        st.markdown(f"""
-        <div class="total-card">
-        <p>💳 TOTAL TARJETAS</p>
-        <h1>${(t_deb + t_cre):.2f}</h1>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Botón para enviar EL RESUMEN TOTAL por WhatsApp
-        url_wa_resumen = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje)}"
-        st.link_button("📲 Enviar al WhatsApp", url_wa_resumen, use_container_width=True)
 
 # --- TAB 3: CALCULADORA ---
 with tab3:
     st.write("### Calculadora de Tarjetas")
-    st.number_input("Monto a ingresar", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_calculadora", placeholder="0.00")
+    st.number_input("Monto a ingresar", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_calculadora_tab", placeholder="0.00")
     
     c1, c2 = st.columns(2)
     c1.button("➕ Crédito", on_click=op_calc, args=("cre", "base"), key="btn_base_cre")
@@ -337,3 +311,39 @@ with tab3:
         
         url_wa_calc = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_calc)}"
         st.link_button("📲 Enviar al WhatsApp", url_wa_calc, use_container_width=True)
+
+
+# --- TAB 4: RESUMEN (Resultados y WhatsApp) ---
+with tab4:
+    datos_resumen = c.execute("SELECT categoria, monto, hora FROM ventas").fetchall()
+    
+    if not datos_resumen:
+        st.info("Sin registros para resumir")
+    else:
+        df_resumen = pd.DataFrame(datos_resumen, columns=["categoria", "monto", "hora"])
+        
+        st.write("### Totales por Categoría")
+        
+        mensaje = f"💰 *CORTE CHAMPLITTE* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
+        total_general = 0
+
+        for cat in ORDEN_CATEGORIAS:
+            monto_cat = df_resumen[df_resumen["categoria"] == cat]["monto"].sum()
+            if monto_cat > 0:
+                st.write(f"**{cat}:** ${monto_cat:.2f}")
+                mensaje += f"• *{cat}:* ${monto_cat:.2f}\n"
+                total_general += monto_cat
+        
+        t_deb = df_resumen[df_resumen["categoria"] == "Débito"]["monto"].sum()
+        t_cre = df_resumen[df_resumen["categoria"] == "Crédito"]["monto"].sum()
+        
+        st.markdown(f"""
+        <div class="total-card">
+        <p>💳 TOTAL TARJETAS</p>
+        <h1>${(t_deb + t_cre):.2f}</h1>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Botón para enviar EL RESUMEN TOTAL por WhatsApp
+        url_wa_resumen = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje)}"
+        st.link_button("📲 Enviar al WhatsApp", url_wa_resumen, use_container_width=True)
