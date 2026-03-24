@@ -57,6 +57,7 @@ input{
 
 # ------------------ ORDEN Y CATEGORÍAS ------------------
 
+# Definición del orden estricto solicitado
 ORDEN_CATEGORIAS = [
     "Tarjeta Débito", 
     "Tarjeta Crédito", 
@@ -111,21 +112,6 @@ with tab1:
     if "confirmacion" in st.session_state:
         st.markdown(st.session_state.confirmacion, unsafe_allow_html=True)
 
-    # ------------------ NUEVO ESPACIO AÑADIDO ------------------
-    st.divider()
-    st.write("### ⏱️ Últimos montos agregados")
-    
-    # Obtenemos los registros ordenados del más reciente al más antiguo
-    ultimos_datos = c.execute("SELECT categoria, monto, hora FROM ventas ORDER BY id DESC").fetchall()
-    
-    if ultimos_datos:
-        # Mostramos solo los últimos 5 para no saturar la pantalla de captura
-        for cat, monto, hora in ultimos_datos[:5]: 
-            st.markdown(f"<span style='color:#90ee90;'>•</span> <b>{cat}:</b> ${monto:.2f} <span style='color:gray; font-size:0.85em;'><i>({hora})</i></span>", unsafe_allow_html=True)
-    else:
-        st.caption("Aún no hay registros recientes.")
-    # -----------------------------------------------------------
-
 with tab2:
     datos = c.execute("SELECT categoria, monto, hora FROM ventas").fetchall()
     
@@ -161,10 +147,16 @@ with tab2:
 
         # Iterar en el orden específico
         for cat in ORDEN_CATEGORIAS:
-            monto_cat = edited_df[edited_df["categoria"] == cat]["monto"].sum()
+            # Extraer todos los montos individuales de la categoría
+            filtro_montos = edited_df[edited_df["categoria"] == cat]["monto"]
+            monto_cat = filtro_montos.sum()
+            
             if monto_cat > 0:
-                st.write(f"**{cat}:** ${monto_cat:.2f}")
-                mensaje += f"• *{cat}:* ${monto_cat:.2f}\n"
+                # Crear un string con el detalle de los montos sumados
+                detalle_txt = " + ".join([f"{m:.2f}" for m in filtro_montos])
+                
+                st.write(f"**{cat}:** ${monto_cat:.2f} _({detalle_txt})_")
+                mensaje += f"• *{cat}:* ${monto_cat:.2f} ({detalle_txt})\n"
                 total_general += monto_cat
         
         # Tarjeta de total principal (Tarjetas)
