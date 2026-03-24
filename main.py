@@ -275,13 +275,13 @@ with tab3:
     
     with st.expander("➕ Suma", expanded=True):
         c1, c2 = st.columns(2)
-        c1.button("➕ Crédito", on_click=op_calc, args=("cre", "base"), key="btn_base_cre")
-        c2.button("➕ Débito", on_click=op_calc, args=("deb", "base"), key="btn_base_deb")
+        c1.button("💳 Crédito", on_click=op_calc, args=("cre", "base"), key="btn_base_cre")
+        c2.button("💵 Débito", on_click=op_calc, args=("deb", "base"), key="btn_base_deb")
         
     with st.expander("➖ Resta", expanded=False):
         c3, c4 = st.columns(2)
-        c3.button("➖ Crédito", on_click=op_calc, args=("cre", "resta"), key="btn_resta_cre")
-        c4.button("➖ Débito", on_click=op_calc, args=("deb", "resta"), key="btn_resta_deb")
+        c3.button("💳 Crédito", on_click=op_calc, args=("cre", "resta"), key="btn_resta_cre")
+        c4.button("💵 Débito", on_click=op_calc, args=("deb", "resta"), key="btn_resta_deb")
 
     # Mostrar confirmación verde de la calculadora si existe
     if "confirmacion_calc" in st.session_state:
