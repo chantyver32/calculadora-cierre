@@ -85,8 +85,8 @@ ORDEN_CATEGORIAS = [
 ]
 
 labels_botones = [
-    ("💳 T. Débito", "Tarjeta Débito"),
-    ("💳 T. Crédito", "Tarjeta Crédito"),
+    ("💳 Débito", "Tarjeta Débito"),
+    ("💳 Crédito", "Tarjeta Crédito"),
     ("🚗 Uber", "Uber"),
     ("🛵 Didi", "Didi"),
     ("📦 Rappi", "Rappi"),
@@ -199,24 +199,7 @@ with tab1:
     if "confirmacion" in st.session_state:
         st.markdown(st.session_state.confirmacion, unsafe_allow_html=True)
 
-    st.divider()
-    
-    # --- Desplegable para TODOS los registros ---
-    with st.expander("📂 Ver y Enviar Registros del Día"):
-        # Se quitó el "LIMIT 10" para que muestre todo
-        datos_recientes = c.execute("SELECT categoria, monto, hora FROM ventas ORDER BY id DESC").fetchall()
-        if datos_recientes:
-            df_recientes = pd.DataFrame(datos_recientes, columns=["categoria", "monto", "hora"])
-            edited_df_recientes = st.data_editor(df_recientes, use_container_width=True, hide_index=True, key="editor_tab1")
-            
-            mensaje_t1 = f"📝 *REGISTROS DEL DÍA* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
-            for _, row in df_recientes.iterrows():
-                mensaje_t1 += f"• {row['categoria']}: ${row['monto']:.2f} ({row['hora']})\n"
-            
-            url_wa_t1 = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_t1)}"
-            st.link_button("📲 ENVIAR ESTOS REGISTROS AL WA", url_wa_t1, use_container_width=True)
-        else:
-            st.info("Sin registros.")
+    # Nota: Se eliminó completamente la tabla de aquí para dejar la interfaz más limpia.
 
 
 # --- TAB 2: RESUMEN ---
@@ -228,25 +211,34 @@ with tab2:
     else:
         df = pd.DataFrame(datos, columns=["categoria", "monto", "hora"])
         
-        st.write("### 📂 Todos los Movimientos (Editable)")
-        edited_df = st.data_editor(df, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_tab2")
+        # --- DESPLEGABLE EN RESUMEN ---
+        with st.expander("📂 Ver y Editar Todos los Movimientos"):
+            edited_df = st.data_editor(df, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_tab2")
 
-        c1, c2 = st.columns(2)
-        if c1.button("💾 Guardar Cambios", use_container_width=True):
-            c.execute("DELETE FROM ventas")
+            c1, c2 = st.columns(2)
+            if c1.button("💾 Guardar Cambios", use_container_width=True):
+                c.execute("DELETE FROM ventas")
+                for _, row in edited_df.iterrows():
+                    if pd.notna(row["categoria"]): # Evita guardar filas vacías
+                        c.execute("INSERT INTO ventas (categoria, monto, hora) VALUES (?,?,?)", 
+                                 (row["categoria"], row["monto"], row["hora"]))
+                conn.commit()
+                st.success("Cambios guardados.")
+                time.sleep(1)
+                st.rerun()
+                
+            if c2.button("🗑️ Borrar Todo", use_container_width=True):
+                c.execute("DELETE FROM ventas")
+                conn.commit()
+                st.rerun()
+                
+            # Botón para enviar LA LISTA DE REGISTROS por WhatsApp
+            mensaje_lista = f"📝 *REGISTROS DEL DÍA* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
             for _, row in edited_df.iterrows():
-                if pd.notna(row["categoria"]): # Evita guardar filas vacías
-                    c.execute("INSERT INTO ventas (categoria, monto, hora) VALUES (?,?,?)", 
-                             (row["categoria"], row["monto"], row["hora"]))
-            conn.commit()
-            st.success("Cambios guardados.")
-            time.sleep(1)
-            st.rerun()
+                mensaje_lista += f"• {row['categoria']}: ${row['monto']:.2f} ({row['hora']})\n"
             
-        if c2.button("🗑️ Borrar Todo", use_container_width=True):
-            c.execute("DELETE FROM ventas")
-            conn.commit()
-            st.rerun()
+            url_wa_lista = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_lista)}"
+            st.link_button("📲 ENVIAR LISTA DE REGISTROS AL WA", url_wa_lista, use_container_width=True)
 
         st.divider()
 
@@ -272,8 +264,9 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
 
-        url_wa = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje)}"
-        st.link_button("📲 ENVIAR REPORTE AL WA", url_wa, use_container_width=True)
+        # Botón para enviar EL RESUMEN TOTAL por WhatsApp
+        url_wa_resumen = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje)}"
+        st.link_button("📲 ENVIAR REPORTE TOTAL AL WA", url_wa_resumen, use_container_width=True)
 
 # --- TAB 3: CALCULADORA ---
 with tab3:
@@ -282,38 +275,37 @@ with tab3:
     
     st.write("**1. Sumar Monto Base**")
     c1, c2 = st.columns(2)
-    c1.button("➕ Base T. Crédito", on_click=op_calc, args=("cre", "base"), key="btn_base_cre")
-    c2.button("➕ Base T. Débito", on_click=op_calc, args=("deb", "base"), key="btn_base_deb")
+    c1.button("➕ Crédito", on_click=op_calc, args=("cre", "base"), key="btn_base_cre")
+    c2.button("➕ Débito", on_click=op_calc, args=("deb", "base"), key="btn_base_deb")
 
     st.write("**2. Restar Cantidades**")
     c3, c4 = st.columns(2)
-    c3.button("➖ Restar a T. Crédito", on_click=op_calc, args=("cre", "resta"), key="btn_resta_cre")
-    c4.button("➖ Restar a T. Débito", on_click=op_calc, args=("deb", "resta"), key="btn_resta_deb")
+    c3.button("➖ Crédito", on_click=op_calc, args=("cre", "resta"), key="btn_resta_cre")
+    c4.button("➖ Débito", on_click=op_calc, args=("deb", "resta"), key="btn_resta_deb")
 
     st.divider()
     
-    # --- TABLA DE DETALLES EDITABLE ---
-    st.write("### 🧮 Detalle de Movimientos (Editable)")
-    
-    df_calc = pd.DataFrame(columns=["Tarjeta", "Operación", "Monto"]) # Default vacío
-    if st.session_state.calc_historial:
-        df_calc = pd.DataFrame(st.session_state.calc_historial)
+    # --- DESPLEGABLE EN CALCULADORA ---
+    with st.expander("🧮 Ver y Editar Historial de Calculadora"):
+        df_calc = pd.DataFrame(columns=["Tarjeta", "Operación", "Monto"]) # Default vacío
+        if st.session_state.calc_historial:
+            df_calc = pd.DataFrame(st.session_state.calc_historial)
+            
+        edited_calc = st.data_editor(df_calc, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_calc")
         
-    edited_calc = st.data_editor(df_calc, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_calc")
-    
-    if st.button("💾 Guardar Cambios en Calculadora", use_container_width=True):
-        st.session_state.calc_historial = edited_calc.to_dict('records')
-        st.success("Cálculos actualizados.")
-        time.sleep(1)
-        st.rerun()
+        if st.button("💾 Guardar Cambios en Calculadora", use_container_width=True):
+            st.session_state.calc_historial = edited_calc.to_dict('records')
+            st.success("Cálculos actualizados.")
+            time.sleep(1)
+            st.rerun()
         
     st.divider()
     
     # Recalculamos basándonos en la tabla editada
-    base_cre = edited_calc[(edited_calc["Tarjeta"] == "Crédito") & (edited_calc["Operación"] == "Suma a Base")]["Monto"].sum()
+    base_cre = edited_calc[(edited_calc["Tarjeta"] == "Crédito") & (edited_calc["Operación"] == "Suma")]["Monto"].sum()
     resta_cre = edited_calc[(edited_calc["Tarjeta"] == "Crédito") & (edited_calc["Operación"] == "Resta")]["Monto"].sum()
     
-    base_deb = edited_calc[(edited_calc["Tarjeta"] == "Débito") & (edited_calc["Operación"] == "Suma a Base")]["Monto"].sum()
+    base_deb = edited_calc[(edited_calc["Tarjeta"] == "Débito") & (edited_calc["Operación"] == "Suma")]["Monto"].sum()
     resta_deb = edited_calc[(edited_calc["Tarjeta"] == "Débito") & (edited_calc["Operación"] == "Resta")]["Monto"].sum()
 
     res_cre = base_cre - resta_cre
