@@ -220,7 +220,7 @@ with tab2:
         df = pd.DataFrame(datos, columns=["categoria", "monto", "hora"])
         
         # --- DESPLEGABLE EN RESUMEN ---
-        with st.expander("📂 Ver y Editar Todos los Movimientos"):
+        with st.expander("📝 Ver y Editar Historial de Registro"):
             edited_df = st.data_editor(df, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_tab2")
 
             if st.button("💾 Guardar Cambios en Registro", use_container_width=True):
