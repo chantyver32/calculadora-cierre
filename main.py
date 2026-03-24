@@ -323,14 +323,9 @@ with tab4:
     
     st.write("")
     
-    col_calc_1, col_calc_2 = st.columns(2)
-    with col_calc_1:
-        st.button("🧹 Limpiar Calculadora", on_click=limpiar_calc, use_container_width=True)
+    mensaje_calc = f"🧮 *CALCULADORA CHAMPLITTE* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
+    mensaje_calc += f"💳 *Crédito:*\nSumado: ${base_cre:.2f}\nRestado: ${resta_cre:.2f}\n*Total: ${res_cre:.2f}*\n\n"
+    mensaje_calc += f"💵 *Débito:*\nSumado: ${base_deb:.2f}\nRestado: ${resta_deb:.2f}\n*Total: ${res_deb:.2f}*"
     
-    with col_calc_2:
-        mensaje_calc = f"🧮 *CALCULADORA CHAMPLITTE* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
-        mensaje_calc += f"💳 *Crédito:*\nSumado: ${base_cre:.2f}\nRestado: ${resta_cre:.2f}\n*Total: ${res_cre:.2f}*\n\n"
-        mensaje_calc += f"💵 *Débito:*\nSumado: ${base_deb:.2f}\nRestado: ${resta_deb:.2f}\n*Total: ${res_deb:.2f}*"
-        
-        url_wa_calc = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_calc)}"
-        st.link_button("📲 Enviar al WhatsApp", url_wa_calc, use_container_width=True)
+    url_wa_calc = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_calc)}"
+    st.link_button("📲 Enviar al WhatsApp", url_wa_calc, use_container_width=True)
