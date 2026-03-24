@@ -101,17 +101,27 @@ def op_calc(tipo, accion):
     monto = st.session_state.monto_calculadora
     if monto and monto > 0:
         tipo_str = "Crédito" if tipo == "cre" else "Débito"
-        accion_str = "Suma a Base" if accion == "base" else "Resta"
+        accion_str = "Suma" if accion == "base" else "Resta"
         
         st.session_state.calc_historial.append({
             "Tarjeta": tipo_str,
             "Operación": accion_str,
             "Monto": float(monto)
         })
+        
+        # Guardar confirmación verde para la calculadora
+        st.session_state.confirmacion_calc = f"""
+        <div class="confirm">
+        ✅ <b>{tipo_str} ({accion_str}):</b> ${monto:.2f}
+        </div>
+        """
+        
         st.session_state.monto_calculadora = None
 
 def limpiar_calc():
     st.session_state.calc_historial = [] 
+    if "confirmacion_calc" in st.session_state:
+        del st.session_state["confirmacion_calc"]
 
 def registrar_pago(cat):
     monto = st.session_state.monto_actual
@@ -199,8 +209,6 @@ with tab1:
     if "confirmacion" in st.session_state:
         st.markdown(st.session_state.confirmacion, unsafe_allow_html=True)
 
-    # Nota: Se eliminó completamente la tabla de aquí para dejar la interfaz más limpia.
-
 
 # --- TAB 2: RESUMEN ---
 with tab2:
@@ -279,6 +287,10 @@ with tab3:
     c3, c4 = st.columns(2)
     c3.button("➖ Crédito", on_click=op_calc, args=("cre", "resta"), key="btn_resta_cre")
     c4.button("➖ Débito", on_click=op_calc, args=("deb", "resta"), key="btn_resta_deb")
+
+    # Mostrar confirmación verde de la calculadora si existe
+    if "confirmacion_calc" in st.session_state:
+        st.markdown(st.session_state.confirmacion_calc, unsafe_allow_html=True)
 
     st.divider()
     
