@@ -239,14 +239,6 @@ with tab2:
                 c.execute("DELETE FROM ventas")
                 conn.commit()
                 st.rerun()
-                
-            # Botón para enviar LA LISTA DE REGISTROS por WhatsApp
-            mensaje_lista = f"📝 *REGISTROS DEL DÍA* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
-            for _, row in edited_df.iterrows():
-                mensaje_lista += f"• {row['categoria']}: ${row['monto']:.2f} ({row['hora']})\n"
-            
-            url_wa_lista = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_lista)}"
-            st.link_button("📲 Enviar al WhatsApp", url_wa_lista, use_container_width=True)
 
         st.divider()
 
