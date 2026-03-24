@@ -273,12 +273,9 @@ with tab3:
     st.write("### Calculadora de Tarjetas")
     st.number_input("Monto a ingresar", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_calculadora", placeholder="0.00")
     
-    st.write("**1. Sumar Monto Base**")
     c1, c2 = st.columns(2)
     c1.button("➕ Crédito", on_click=op_calc, args=("cre", "base"), key="btn_base_cre")
     c2.button("➕ Débito", on_click=op_calc, args=("deb", "base"), key="btn_base_deb")
-
-    st.write("**2. Restar Cantidades**")
     c3, c4 = st.columns(2)
     c3.button("➖ Crédito", on_click=op_calc, args=("cre", "resta"), key="btn_resta_cre")
     c4.button("➖ Débito", on_click=op_calc, args=("deb", "resta"), key="btn_resta_deb")
