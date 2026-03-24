@@ -1,4 +1,4 @@
-import streamlit as st
+Import streamlit as st
 import urllib.parse
 from datetime import datetime
 import pytz
@@ -147,16 +147,10 @@ with tab2:
 
         # Iterar en el orden específico
         for cat in ORDEN_CATEGORIAS:
-            # Extraer todos los montos individuales de la categoría
-            filtro_montos = edited_df[edited_df["categoria"] == cat]["monto"]
-            monto_cat = filtro_montos.sum()
-            
+            monto_cat = edited_df[edited_df["categoria"] == cat]["monto"].sum()
             if monto_cat > 0:
-                # Crear un string con el detalle de los montos sumados
-                detalle_txt = " + ".join([f"{m:.2f}" for m in filtro_montos])
-                
-                st.write(f"**{cat}:** ${monto_cat:.2f} _({detalle_txt})_")
-                mensaje += f"• *{cat}:* ${monto_cat:.2f} ({detalle_txt})\n"
+                st.write(f"**{cat}:** ${monto_cat:.2f}")
+                mensaje += f"• *{cat}:* ${monto_cat:.2f}\n"
                 total_general += monto_cat
         
         # Tarjeta de total principal (Tarjetas)
@@ -172,4 +166,4 @@ with tab2:
 
         # Botón WhatsApp
         url_wa = f"https://wa.me/522283530069?text={urllib.parse.quote(mensaje)}"
-        st.link_button("📲 ENVIAR REPORTE", url_wa, use_container_width=True)
+        st.link_button("📲 ENVIAR REPORTE", url_wa, use_container_width=True) 
