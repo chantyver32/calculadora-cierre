@@ -188,12 +188,15 @@ with tab1:
     st.number_input("Monto", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_actual", placeholder="0.00")
     
     with st.expander("💳 Tarjetas y Transferencia", expanded=True):
+        # Crédito y Débito en la primera fila
         col1, col2 = st.columns(2)
         with col1:
             st.button("💳 Crédito", on_click=registrar_pago, args=("Crédito",), key="btn_cre")
-            st.button("🔗 Transf. Liga", on_click=registrar_pago, args=("Transferencia Liga",), key="btn_transf")
         with col2:
             st.button("💵 Débito", on_click=registrar_pago, args=("Débito",), key="btn_deb")
+        
+        # Transferencia Liga abarcando todo el ancho abajo de los dos anteriores
+        st.button("🏦 Transf. Liga", on_click=registrar_pago, args=("Transferencia Liga",), key="btn_transf")
 
     with st.expander("🛵 Plataformas Delivery", expanded=False):
         col3, col4 = st.columns(2)
