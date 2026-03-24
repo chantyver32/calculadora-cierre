@@ -189,11 +189,12 @@ with tab1:
     
     with st.expander("💳 Tarjetas y Transferencia", expanded=True):
         col1, col2 = st.columns(2)
+        # Ajustado para que en la vista de celular el orden hacia abajo sea: Crédito, Transf, Débito
         with col1:
-            st.button("💳 Débito", on_click=registrar_pago, args=("Débito",), key="btn_deb")
+            st.button("💳 Crédito", on_click=registrar_pago, args=("Crédito",), key="btn_cre")
             st.button("🔗 Transf. Liga", on_click=registrar_pago, args=("Transferencia Liga",), key="btn_transf")
         with col2:
-            st.button("💳 Crédito", on_click=registrar_pago, args=("Crédito",), key="btn_cre")
+            st.button("💳 Débito", on_click=registrar_pago, args=("Débito",), key="btn_deb")
 
     with st.expander("🛵 Plataformas Delivery", expanded=False):
         col3, col4 = st.columns(2)
