@@ -84,15 +84,6 @@ ORDEN_CATEGORIAS = [
     "Transferencia Liga"
 ]
 
-labels_botones = [
-    ("💳 Débito", "Débito"),
-    ("💳 Crédito", "Crédito"),
-    ("🚗 Uber", "Uber"),
-    ("🛵 Didi", "Didi"),
-    ("📦 Rappi", "Rappi"),
-    ("🔗 Transf. Liga", "Transferencia Liga")
-]
-
 # ------------------ LÓGICA DE VARIABLES ------------------
 
 if "calc_historial" not in st.session_state: st.session_state.calc_historial = []
@@ -196,15 +187,21 @@ tab1, tab2, tab3, tab4 = st.tabs(["📝 REGISTRO", "📊 RESUMEN", "🧮 CALCULA
 with tab1:
     st.number_input("Monto", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_actual", placeholder="0.00")
     
-    for i in range(0, len(labels_botones), 2):
+    with st.expander("💳 Tarjetas y Transferencia", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
-            label, key = labels_botones[i]
-            st.button(label, on_click=registrar_pago, args=(key,), key=f"btn_{i}")
+            st.button("💳 Débito", on_click=registrar_pago, args=("Débito",), key="btn_deb")
+            st.button("🔗 Transf. Liga", on_click=registrar_pago, args=("Transferencia Liga",), key="btn_transf")
         with col2:
-            if i+1 < len(labels_botones):
-                label, key = labels_botones[i+1]
-                st.button(label, on_click=registrar_pago, args=(key,), key=f"btn_{i+1}")
+            st.button("💳 Crédito", on_click=registrar_pago, args=("Crédito",), key="btn_cre")
+
+    with st.expander("🛵 Plataformas Delivery", expanded=False):
+        col3, col4 = st.columns(2)
+        with col3:
+            st.button("🚗 Uber", on_click=registrar_pago, args=("Uber",), key="btn_uber")
+            st.button("📦 Rappi", on_click=registrar_pago, args=("Rappi",), key="btn_rappi")
+        with col4:
+            st.button("🛵 Didi", on_click=registrar_pago, args=("Didi",), key="btn_didi")
 
     if "confirmacion" in st.session_state:
         st.markdown(st.session_state.confirmacion, unsafe_allow_html=True)
@@ -239,14 +236,6 @@ with tab2:
                 c.execute("DELETE FROM ventas")
                 conn.commit()
                 st.rerun()
-                
-            # Botón para enviar LA LISTA DE REGISTROS por WhatsApp
-            mensaje_lista = f"📝 *REGISTROS DEL DÍA* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
-            for _, row in edited_df.iterrows():
-                mensaje_lista += f"• {row['categoria']}: ${row['monto']:.2f} ({row['hora']})\n"
-            
-            url_wa_lista = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_lista)}"
-            st.link_button("📲 Enviar al WhatsApp", url_wa_lista, use_container_width=True)
 
         st.divider()
 
@@ -276,27 +265,28 @@ with tab2:
         url_wa_resumen = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje)}"
         st.link_button("📲 Enviar al WhatsApp", url_wa_resumen, use_container_width=True)
 
+
 # --- TAB 3: CALCULADORA ---
 with tab3:
-    st.write("### Calculadora de Tarjetas")
     st.number_input("Monto a ingresar", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_calculadora", placeholder="0.00")
     
-    c1, c2 = st.columns(2)
-    c1.button("➕ Crédito", on_click=op_calc, args=("cre", "base"), key="btn_base_cre")
-    c2.button("➕ Débito", on_click=op_calc, args=("deb", "base"), key="btn_base_deb")
-    c3, c4 = st.columns(2)
-    c3.button("➖ Crédito", on_click=op_calc, args=("cre", "resta"), key="btn_resta_cre")
-    c4.button("➖ Débito", on_click=op_calc, args=("deb", "resta"), key="btn_resta_deb")
+    with st.expander("➕ Suma (Ingresos)", expanded=True):
+        c1, c2 = st.columns(2)
+        c1.button("➕ Crédito", on_click=op_calc, args=("cre", "base"), key="btn_base_cre")
+        c2.button("➕ Débito", on_click=op_calc, args=("deb", "base"), key="btn_base_deb")
+        
+    with st.expander("➖ Resta (Devoluciones / Retiros)", expanded=False):
+        c3, c4 = st.columns(2)
+        c3.button("➖ Crédito", on_click=op_calc, args=("cre", "resta"), key="btn_resta_cre")
+        c4.button("➖ Débito", on_click=op_calc, args=("deb", "resta"), key="btn_resta_deb")
 
     # Mostrar confirmación verde de la calculadora si existe
     if "confirmacion_calc" in st.session_state:
         st.markdown(st.session_state.confirmacion_calc, unsafe_allow_html=True)
 
 
-# --- TAB 4: RESULTADOS (NUEVO) ---
+# --- TAB 4: RESULTADOS ---
 with tab4:
-    st.write("### Historial y Resultados de Calculadora")
-    
     # --- DESPLEGABLE EN RESULTADOS ---
     with st.expander("🧮 Ver y Editar Historial de Calculadora"):
         df_calc = pd.DataFrame(columns=["Tarjeta", "Operación", "Monto"]) # Default vacío
@@ -323,7 +313,6 @@ with tab4:
     res_cre = base_cre - resta_cre
     res_deb = base_deb - resta_deb
     
-    st.write("### Resultados Finales")
     st.markdown(f"""
     <div class="confirm" style="border-left:5px solid #ffcc00;">
         <p style="margin:0; font-size:14px; color:#aaa;">💳 Crédito (Sumado: ${base_cre:.2f} | Restado: ${resta_cre:.2f})</p>
