@@ -77,28 +77,6 @@ labels_botones = [
 
 # ------------------ LOGICA ------------------
 
-# --- VARIABLES DE SESIÓN PARA LA CALCULADORA (NUEVO) ---
-if "calc_base_cre" not in st.session_state: st.session_state.calc_base_cre = 0.0
-if "calc_base_deb" not in st.session_state: st.session_state.calc_base_deb = 0.0
-if "calc_resta_cre" not in st.session_state: st.session_state.calc_resta_cre = 0.0
-if "calc_resta_deb" not in st.session_state: st.session_state.calc_resta_deb = 0.0
-
-def op_calc(tipo, accion):
-    monto = st.session_state.monto_calculadora
-    if monto and monto > 0:
-        if tipo == "cre" and accion == "base": st.session_state.calc_base_cre += monto
-        if tipo == "deb" and accion == "base": st.session_state.calc_base_deb += monto
-        if tipo == "cre" and accion == "resta": st.session_state.calc_resta_cre += monto
-        if tipo == "deb" and accion == "resta": st.session_state.calc_resta_deb += monto
-        st.session_state.monto_calculadora = None
-
-def limpiar_calc():
-    st.session_state.calc_base_cre = 0.0
-    st.session_state.calc_base_deb = 0.0
-    st.session_state.calc_resta_cre = 0.0
-    st.session_state.calc_resta_deb = 0.0
-# -------------------------------------------------------
-
 def registrar_pago(cat):
     monto = st.session_state.monto_actual
     if monto and monto > 0:
@@ -114,8 +92,7 @@ def registrar_pago(cat):
 
 # ------------------ INTERFAZ (TABS) ------------------
 
-# Se agregó un tercer tab a la lista
-tab1, tab2, tab3 = st.tabs(["📝 REGISTRO", "📊 RESUMEN", "🧮 CALCULADORA"])
+tab1, tab2 = st.tabs(["📝 REGISTRO", "📊 RESUMEN"])
 
 with tab1:
     st.number_input("Monto", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_actual", placeholder="0.00")
@@ -133,6 +110,21 @@ with tab1:
 
     if "confirmacion" in st.session_state:
         st.markdown(st.session_state.confirmacion, unsafe_allow_html=True)
+
+    # ------------------ NUEVO ESPACIO AÑADIDO ------------------
+    st.divider()
+    st.write("### ⏱️ Últimos montos agregados")
+    
+    # Obtenemos los registros ordenados del más reciente al más antiguo
+    ultimos_datos = c.execute("SELECT categoria, monto, hora FROM ventas ORDER BY id DESC").fetchall()
+    
+    if ultimos_datos:
+        # Mostramos solo los últimos 5 para no saturar la pantalla de captura
+        for cat, monto, hora in ultimos_datos[:5]: 
+            st.markdown(f"<span style='color:#90ee90;'>•</span> <b>{cat}:</b> ${monto:.2f} <span style='color:gray; font-size:0.85em;'><i>({hora})</i></span>", unsafe_allow_html=True)
+    else:
+        st.caption("Aún no hay registros recientes.")
+    # -----------------------------------------------------------
 
 with tab2:
     datos = c.execute("SELECT categoria, monto, hora FROM ventas").fetchall()
@@ -189,40 +181,3 @@ with tab2:
         # Botón WhatsApp
         url_wa = f"https://wa.me/522283530069?text={urllib.parse.quote(mensaje)}"
         st.link_button("📲 ENVIAR REPORTE", url_wa, use_container_width=True)
-
-# --- NUEVO TAB: CALCULADORA ---
-with tab3:
-    st.write("### Restar a Totales de Tarjeta")
-    st.number_input("Monto a calcular", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_calculadora", placeholder="0.00")
-    
-    st.write("**1. Establecer Monto Base**")
-    c1, c2 = st.columns(2)
-    c1.button("➕ Base T. Crédito", on_click=op_calc, args=("cre", "base"), key="btn_base_cre")
-    c2.button("➕ Base T. Débito", on_click=op_calc, args=("deb", "base"), key="btn_base_deb")
-
-    st.write("**2. Restar Cantidades**")
-    c3, c4 = st.columns(2)
-    c3.button("➖ Restar a T. Crédito", on_click=op_calc, args=("cre", "resta"), key="btn_resta_cre")
-    c4.button("➖ Restar a T. Débito", on_click=op_calc, args=("deb", "resta"), key="btn_resta_deb")
-
-    st.divider()
-    
-    st.write("### Resultados Finales")
-    
-    res_cre = st.session_state.calc_base_cre - st.session_state.calc_resta_cre
-    res_deb = st.session_state.calc_base_deb - st.session_state.calc_resta_deb
-    
-    st.markdown(f"""
-    <div class="confirm" style="border-left:5px solid #ffcc00;">
-        <p style="margin:0; font-size:14px; color:#aaa;">💳 T. CRÉDITO (Base: ${st.session_state.calc_base_cre:.2f} | Restado: ${st.session_state.calc_resta_cre:.2f})</p>
-        <h2 style="margin:0; color:#ffcc00;">${res_cre:.2f}</h2>
-    </div>
-    <div class="confirm" style="border-left:5px solid #00ccff;">
-        <p style="margin:0; font-size:14px; color:#aaa;">💳 T. DÉBITO (Base: ${st.session_state.calc_base_deb:.2f} | Restado: ${st.session_state.calc_resta_deb:.2f})</p>
-        <h2 style="margin:0; color:#00ccff;">${res_deb:.2f}</h2>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.write("")
-    st.button("🧹 Limpiar Calculadora", on_click=limpiar_calc)
-
