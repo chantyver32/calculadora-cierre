@@ -266,7 +266,7 @@ with tab2:
 
         # Botón para enviar EL RESUMEN TOTAL por WhatsApp
         url_wa_resumen = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje)}"
-        st.link_button("📲 Enviar al WhatsAppq", url_wa_resumen, use_container_width=True)
+        st.link_button("📲 Enviar al WhatsApp", url_wa_resumen, use_container_width=True)
 
 # --- TAB 3: CALCULADORA ---
 with tab3:
