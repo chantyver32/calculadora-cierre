@@ -76,8 +76,8 @@ li[role="option"] {
 # ------------------ ORDEN Y CATEGORÍAS ------------------
 
 ORDEN_CATEGORIAS = [
-    "Tarjeta Débito", 
-    "Tarjeta Crédito", 
+    "Débito", 
+    "Crédito", 
     "Uber", 
     "Didi", 
     "Rappi", 
@@ -85,8 +85,8 @@ ORDEN_CATEGORIAS = [
 ]
 
 labels_botones = [
-    ("💳 Débito", "Tarjeta Débito"),
-    ("💳 Crédito", "Tarjeta Crédito"),
+    ("💳 Débito", "Débito"),
+    ("💳 Crédito", "Crédito"),
     ("🚗 Uber", "Uber"),
     ("🛵 Didi", "Didi"),
     ("📦 Rappi", "Rappi"),
