@@ -200,22 +200,23 @@ with tab1:
         st.markdown(st.session_state.confirmacion, unsafe_allow_html=True)
 
     st.divider()
-    st.write("### 📋 Últimos Registros (Editable)")
     
-    # Restauramos la tabla editable aquí
-    datos_recientes = c.execute("SELECT categoria, monto, hora FROM ventas ORDER BY id DESC LIMIT 10").fetchall()
-    if datos_recientes:
-        df_recientes = pd.DataFrame(datos_recientes, columns=["categoria", "monto", "hora"])
-        edited_df_recientes = st.data_editor(df_recientes, use_container_width=True, hide_index=True, key="editor_tab1")
-        
-        mensaje_t1 = f"📝 *REGISTROS RECIENTES* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
-        for _, row in df_recientes.iterrows():
-            mensaje_t1 += f"• {row['categoria']}: ${row['monto']:.2f} ({row['hora']})\n"
-        
-        url_wa_t1 = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_t1)}"
-        st.link_button("📲 ENVIAR ESTOS REGISTROS AL WA", url_wa_t1, use_container_width=True)
-    else:
-        st.info("Sin registros recientes.")
+    # --- Desplegable para TODOS los registros ---
+    with st.expander("📂 Ver y Enviar Registros del Día"):
+        # Se quitó el "LIMIT 10" para que muestre todo
+        datos_recientes = c.execute("SELECT categoria, monto, hora FROM ventas ORDER BY id DESC").fetchall()
+        if datos_recientes:
+            df_recientes = pd.DataFrame(datos_recientes, columns=["categoria", "monto", "hora"])
+            edited_df_recientes = st.data_editor(df_recientes, use_container_width=True, hide_index=True, key="editor_tab1")
+            
+            mensaje_t1 = f"📝 *REGISTROS DEL DÍA* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
+            for _, row in df_recientes.iterrows():
+                mensaje_t1 += f"• {row['categoria']}: ${row['monto']:.2f} ({row['hora']})\n"
+            
+            url_wa_t1 = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_t1)}"
+            st.link_button("📲 ENVIAR ESTOS REGISTROS AL WA", url_wa_t1, use_container_width=True)
+        else:
+            st.info("Sin registros.")
 
 
 # --- TAB 2: RESUMEN ---
