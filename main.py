@@ -259,7 +259,7 @@ with tab2:
         
         st.markdown(f"""
         <div class="total-card">
-        <p>"🏦 TOTAL TARJETAS"</p>
+        <p>**🏦 TOTAL TARJETAS**</p>
         <h1>${(t_deb + t_cre):.2f}</h1>
         </div>
         """, unsafe_allow_html=True)
