@@ -4,10 +4,12 @@ from datetime import datetime
 import pytz
 import sqlite3
 import pandas as pd
+import time
+import io
 
 # ------------------ CONFIGURACIÓN ------------------
 
-st.set_page_config(page_title="Corte Champlitte", layout="centered")
+st.set_page_config(page_title="Corte Champlitte", layout="centered", page_icon="🥐")
 
 zona_mx = pytz.timezone("America/Mexico_City")
 
@@ -75,45 +77,25 @@ labels_botones = [
     ("🔗 Transf. Liga", "Transferencia Liga")
 ]
 
-# ------------------ LOGICA ------------------
+# ------------------ LÓGICA DE VARIABLES ------------------
 
-# --- VARIABLES DE SESIÓN PARA LA CALCULADORA ---
-if "calc_base_cre" not in st.session_state: st.session_state.calc_base_cre = 0.0
-if "calc_base_deb" not in st.session_state: st.session_state.calc_base_deb = 0.0
-if "calc_resta_cre" not in st.session_state: st.session_state.calc_resta_cre = 0.0
-if "calc_resta_deb" not in st.session_state: st.session_state.calc_resta_deb = 0.0
-# Nuevo: Historial de movimientos de la calculadora
 if "calc_historial" not in st.session_state: st.session_state.calc_historial = []
 
 def op_calc(tipo, accion):
     monto = st.session_state.monto_calculadora
     if monto and monto > 0:
-        # Lógica de sumas
-        if tipo == "cre" and accion == "base": st.session_state.calc_base_cre += monto
-        if tipo == "deb" and accion == "base": st.session_state.calc_base_deb += monto
-        if tipo == "cre" and accion == "resta": st.session_state.calc_resta_cre += monto
-        if tipo == "deb" and accion == "resta": st.session_state.calc_resta_deb += monto
-        
-        # Lógica de registro para el historial
         tipo_str = "Crédito" if tipo == "cre" else "Débito"
         accion_str = "Suma a Base" if accion == "base" else "Resta"
-        simbolo = "+" if accion == "base" else "-"
         
         st.session_state.calc_historial.append({
             "Tarjeta": tipo_str,
             "Operación": accion_str,
-            "Monto": f"{simbolo} ${monto:.2f}"
+            "Monto": float(monto)
         })
-        
         st.session_state.monto_calculadora = None
 
 def limpiar_calc():
-    st.session_state.calc_base_cre = 0.0
-    st.session_state.calc_base_deb = 0.0
-    st.session_state.calc_resta_cre = 0.0
-    st.session_state.calc_resta_deb = 0.0
-    st.session_state.calc_historial = [] # Limpiar historial
-# -------------------------------------------------------
+    st.session_state.calc_historial = [] 
 
 def registrar_pago(cat):
     monto = st.session_state.monto_actual
@@ -128,10 +110,67 @@ def registrar_pago(cat):
         """
         st.session_state.monto_actual = None
 
+# Función para convertir dataframe a CSV
+@st.cache_data
+def convertir_df_csv(df):
+    return df.to_csv(index=False).encode('utf-8')
+
+# ------------------ SIDEBAR (MENÚ LATERAL) ------------------
+
+st.sidebar.header("⚙️ Configuración")
+
+# Lista desplegable para números de WhatsApp
+opciones_wa = {
+    "Contacto Principal": "522283530069",
+    "Contacto Secundario": "522299359597",
+    "Contacto 3": "520987654321" 
+}
+seleccion_wa = st.sidebar.selectbox("📱 Selecciona el WhatsApp destino", list(opciones_wa.keys()))
+numero_whatsapp = opciones_wa[seleccion_wa]
+
+st.sidebar.divider()
+
+# Espacio para adjuntar CSV y restaurar datos
+st.sidebar.subheader("💾 Respaldo de Base de Datos")
+st.sidebar.info("Sube tu archivo CSV para restaurar los movimientos de ventas (puedes descargarlo desde la pestaña RESUMEN).")
+archivo_csv = st.sidebar.file_uploader("⬆️ Subir Respaldo CSV", type=["csv"])
+
+if archivo_csv is not None:
+    if st.sidebar.button("🔄 Cargar y Restaurar Ventas", use_container_width=True):
+        try:
+            df_restaurar = pd.read_csv(archivo_csv)
+            c.execute("DELETE FROM ventas")
+            for _, fila in df_restaurar.iterrows():
+                c.execute("INSERT INTO ventas (categoria, monto, hora) VALUES (?, ?, ?)", 
+                          (str(fila['categoria']), float(fila['monto']), str(fila['hora'])))
+            conn.commit()
+            st.sidebar.success("✅ Base de datos restaurada correctamente")
+            time.sleep(1.5)
+            st.rerun()
+        except Exception as e:
+            st.sidebar.error(f"⚠️ Error al restaurar: {e}")
+
+st.sidebar.divider()
+
+with st.sidebar.expander("🚨 Zona de Peligro"):
+    confirmar_reset = st.checkbox("Confirmar que deseo borrar todo", key="check_reset")
+    if st.button("⚠️ EJECUTAR RESET TOTAL", use_container_width=True):
+        if confirmar_reset:
+            c.execute("DELETE FROM ventas")
+            conn.commit()
+            st.session_state.calc_historial = []
+            st.sidebar.success("✅ Base de datos limpiada por completo")
+            time.sleep(1)
+            st.rerun()
+        else:
+            st.sidebar.error("Debes confirmar primero")
+
+
 # ------------------ INTERFAZ (TABS) ------------------
 
 tab1, tab2, tab3 = st.tabs(["📝 REGISTRO", "📊 RESUMEN", "🧮 CALCULADORA"])
 
+# --- TAB 1: REGISTRO ---
 with tab1:
     st.number_input("Monto", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_actual", placeholder="0.00")
     
@@ -148,6 +187,25 @@ with tab1:
     if "confirmacion" in st.session_state:
         st.markdown(st.session_state.confirmacion, unsafe_allow_html=True)
 
+    st.divider()
+    st.write("### 📋 Últimos Registros (Editable)")
+    datos_recientes = c.execute("SELECT categoria, monto, hora FROM ventas ORDER BY id DESC LIMIT 10").fetchall()
+    if datos_recientes:
+        df_recientes = pd.DataFrame(datos_recientes, columns=["categoria", "monto", "hora"])
+        edited_df_recientes = st.data_editor(df_recientes, use_container_width=True, hide_index=True, key="editor_tab1")
+        
+        # Opcional: WhatsApp sólo de los últimos movimientos
+        mensaje_t1 = f"📝 *REGISTROS RECIENTES* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
+        for _, row in df_recientes.iterrows():
+            mensaje_t1 += f"• {row['categoria']}: ${row['monto']:.2f} ({row['hora']})\n"
+        
+        url_wa_t1 = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_t1)}"
+        st.link_button("📲 ENVIAR ESTOS REGISTROS AL WA", url_wa_t1, use_container_width=True)
+    else:
+        st.info("Sin registros recientes.")
+
+
+# --- TAB 2: RESUMEN ---
 with tab2:
     datos = c.execute("SELECT categoria, monto, hora FROM ventas").fetchall()
     
@@ -156,18 +214,25 @@ with tab2:
     else:
         df = pd.DataFrame(datos, columns=["categoria", "monto", "hora"])
         
-        st.write("### Movimientos")
-        edited_df = st.data_editor(df, use_container_width=True, hide_index=True, num_rows="dynamic")
+        st.write("### 📂 Todos los Movimientos (Editable)")
+        edited_df = st.data_editor(df, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_tab2")
 
-        c1, c2 = st.columns(2)
-        if c1.button("💾 Guardar", use_container_width=True):
+        c1, c2, c3 = st.columns(3)
+        if c1.button("💾 Guardar Cambios", use_container_width=True):
             c.execute("DELETE FROM ventas")
             for _, row in edited_df.iterrows():
-                c.execute("INSERT INTO ventas (categoria, monto, hora) VALUES (?,?,?)", 
-                         (row["categoria"], row["monto"], row["hora"]))
+                if pd.notna(row["categoria"]): # Evita guardar filas vacías
+                    c.execute("INSERT INTO ventas (categoria, monto, hora) VALUES (?,?,?)", 
+                             (row["categoria"], row["monto"], row["hora"]))
             conn.commit()
+            st.success("Cambios guardados.")
+            time.sleep(1)
             st.rerun()
-        if c2.button("🗑️ Borrar Todo", use_container_width=True):
+            
+        csv = convertir_df_csv(df)
+        c2.download_button(label="📥 Descargar CSV", data=csv, file_name='ventas_respaldo.csv', mime='text/csv', use_container_width=True)
+        
+        if c3.button("🗑️ Borrar Todo", use_container_width=True):
             c.execute("DELETE FROM ventas")
             conn.commit()
             st.rerun()
@@ -196,10 +261,10 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
 
-        url_wa = f"https://wa.me/522283530069?text={urllib.parse.quote(mensaje)}"
-        st.link_button("📲 ENVIAR REPORTE", url_wa, use_container_width=True)
+        url_wa = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje)}"
+        st.link_button("📲 ENVIAR REPORTE AL WA", url_wa, use_container_width=True)
 
-# --- TAB: CALCULADORA ---
+# --- TAB 3: CALCULADORA ---
 with tab3:
     st.write("### Calculadora de Tarjetas")
     st.number_input("Monto a ingresar", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_calculadora", placeholder="0.00")
@@ -216,31 +281,56 @@ with tab3:
 
     st.divider()
     
-    # --- NUEVO: TABLA DE DETALLES ---
-    st.write("### Detalle de Movimientos")
+    # --- TABLA DE DETALLES EDITABLE ---
+    st.write("### 🧮 Detalle de Movimientos (Editable)")
+    
+    df_calc = pd.DataFrame(columns=["Tarjeta", "Operación", "Monto"]) # Default vacío
     if st.session_state.calc_historial:
         df_calc = pd.DataFrame(st.session_state.calc_historial)
-        st.dataframe(df_calc, use_container_width=True, hide_index=True)
-    else:
-        st.info("Aún no hay movimientos en la calculadora.")
+        
+    edited_calc = st.data_editor(df_calc, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_calc")
+    
+    if st.button("💾 Guardar Cambios en Calculadora", use_container_width=True):
+        st.session_state.calc_historial = edited_calc.to_dict('records')
+        st.success("Cálculos actualizados.")
+        time.sleep(1)
+        st.rerun()
         
     st.divider()
     
+    # Recalculamos basándonos en la tabla editada
+    base_cre = edited_calc[(edited_calc["Tarjeta"] == "Crédito") & (edited_calc["Operación"] == "Suma a Base")]["Monto"].sum()
+    resta_cre = edited_calc[(edited_calc["Tarjeta"] == "Crédito") & (edited_calc["Operación"] == "Resta")]["Monto"].sum()
+    
+    base_deb = edited_calc[(edited_calc["Tarjeta"] == "Débito") & (edited_calc["Operación"] == "Suma a Base")]["Monto"].sum()
+    resta_deb = edited_calc[(edited_calc["Tarjeta"] == "Débito") & (edited_calc["Operación"] == "Resta")]["Monto"].sum()
+
+    res_cre = base_cre - resta_cre
+    res_deb = base_deb - resta_deb
+    
     st.write("### Resultados Finales")
-    
-    res_cre = st.session_state.calc_base_cre - st.session_state.calc_resta_cre
-    res_deb = st.session_state.calc_base_deb - st.session_state.calc_resta_deb
-    
     st.markdown(f"""
     <div class="confirm" style="border-left:5px solid #ffcc00;">
-        <p style="margin:0; font-size:14px; color:#aaa;">💳 T. CRÉDITO (Base: ${st.session_state.calc_base_cre:.2f} | Restado: ${st.session_state.calc_resta_cre:.2f})</p>
+        <p style="margin:0; font-size:14px; color:#aaa;">💳 T. CRÉDITO (Base: ${base_cre:.2f} | Restado: ${resta_cre:.2f})</p>
         <h2 style="margin:0; color:#ffcc00;">${res_cre:.2f}</h2>
     </div>
     <div class="confirm" style="border-left:5px solid #00ccff;">
-        <p style="margin:0; font-size:14px; color:#aaa;">💳 T. DÉBITO (Base: ${st.session_state.calc_base_deb:.2f} | Restado: ${st.session_state.calc_resta_deb:.2f})</p>
+        <p style="margin:0; font-size:14px; color:#aaa;">💳 T. DÉBITO (Base: ${base_deb:.2f} | Restado: ${resta_deb:.2f})</p>
         <h2 style="margin:0; color:#00ccff;">${res_deb:.2f}</h2>
     </div>
     """, unsafe_allow_html=True)
     
     st.write("")
-    st.button("🧹 Limpiar Calculadora", on_click=limpiar_calc)
+    
+    col_calc_1, col_calc_2 = st.columns(2)
+    with col_calc_1:
+        st.button("🧹 Limpiar Calculadora", on_click=limpiar_calc, use_container_width=True)
+    
+    with col_calc_2:
+        mensaje_calc = f"🧮 *CALCULADORA CHAMPLITTE* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
+        mensaje_calc += f"💳 *T. CRÉDITO:*\nBase: ${base_cre:.2f}\nRestado: ${resta_cre:.2f}\n*RESULTADO: ${res_cre:.2f}*\n\n"
+        mensaje_calc += f"💳 *T. DÉBITO:*\nBase: ${base_deb:.2f}\nRestado: ${resta_deb:.2f}\n*RESULTADO: ${res_deb:.2f}*"
+        
+        url_wa_calc = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_calc)}"
+        st.link_button("📲 ENVIAR RESULTADOS AL WA", url_wa_calc, use_container_width=True)
+
