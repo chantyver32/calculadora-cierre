@@ -30,27 +30,24 @@ conn.commit()
 
 st.markdown("""
 <style>
-header {visibility:hidden;}
+/* Header visible para que en celular aparezca el botón del menú lateral (sidebar) */
 footer {visibility:hidden;}
 .stApp { background:#121212; color:white; }
 
-/* Input numérico gigante (solo aplica a la caja de monto) */
+/* Input numérico gigante (solo aplica a la caja de monto, evita dañar el desplegable) */
 div[data-testid="stNumberInput"] input {
     background:#000!important; color:#90ee90!important;
     font-size:2rem!important; text-align:center!important;
     border-radius:12px!important; border:2px solid #444!important;
 }
 
-/* FIX: Asegurar que el selectbox principal y sus opciones sean oscuros y visibles */
+/* FIX: Asegurar que el desplegable y sus opciones sean oscuros y visibles */
 div[data-baseweb="select"] > div {
     background-color: #1e1e1e !important;
     color: white !important;
     border: 1px solid #444 !important;
 }
-div[data-baseweb="popover"] {
-    background-color: #1e1e1e !important;
-}
-ul[data-baseweb="menu"] {
+div[data-baseweb="popover"], ul[data-baseweb="menu"] {
     background-color: #1e1e1e !important;
 }
 li[role="option"] {
@@ -134,7 +131,7 @@ def registrar_pago(cat):
 
 st.sidebar.header("⚙️ Configuración")
 
-# Lista desplegable para números de WhatsApp (Ya debe verse correctamente)
+# Lista desplegable para números de WhatsApp
 opciones_wa = {
     "Contacto Principal": "522283530069",
     "Contacto Secundario": "522299359597",
@@ -203,17 +200,18 @@ with tab1:
         st.markdown(st.session_state.confirmacion, unsafe_allow_html=True)
 
     st.divider()
-    st.write("### 📋 Últimos Registros")
-    datos_recientes = c.execute("SELECT categoria, monto, hora FROM ventas ORDER BY id DESC LIMIT 10").fetchall()
+    st.write("### 📋 Últimos Registros (Editable)")
     
+    # Restauramos la tabla editable aquí
+    datos_recientes = c.execute("SELECT categoria, monto, hora FROM ventas ORDER BY id DESC LIMIT 10").fetchall()
     if datos_recientes:
+        df_recientes = pd.DataFrame(datos_recientes, columns=["categoria", "monto", "hora"])
+        edited_df_recientes = st.data_editor(df_recientes, use_container_width=True, hide_index=True, key="editor_tab1")
+        
         mensaje_t1 = f"📝 *REGISTROS RECIENTES* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
+        for _, row in df_recientes.iterrows():
+            mensaje_t1 += f"• {row['categoria']}: ${row['monto']:.2f} ({row['hora']})\n"
         
-        for row in datos_recientes:
-            st.write(f"• **{row[0]}**: ${row[1]:.2f} ({row[2]})")
-            mensaje_t1 += f"• {row[0]}: ${row[1]:.2f} ({row[2]})\n"
-        
-        st.write("") 
         url_wa_t1 = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_t1)}"
         st.link_button("📲 ENVIAR ESTOS REGISTROS AL WA", url_wa_t1, use_container_width=True)
     else:
@@ -236,7 +234,7 @@ with tab2:
         if c1.button("💾 Guardar Cambios", use_container_width=True):
             c.execute("DELETE FROM ventas")
             for _, row in edited_df.iterrows():
-                if pd.notna(row["categoria"]):
+                if pd.notna(row["categoria"]): # Evita guardar filas vacías
                     c.execute("INSERT INTO ventas (categoria, monto, hora) VALUES (?,?,?)", 
                              (row["categoria"], row["monto"], row["hora"]))
             conn.commit()
@@ -293,9 +291,10 @@ with tab3:
 
     st.divider()
     
+    # --- TABLA DE DETALLES EDITABLE ---
     st.write("### 🧮 Detalle de Movimientos (Editable)")
     
-    df_calc = pd.DataFrame(columns=["Tarjeta", "Operación", "Monto"]) 
+    df_calc = pd.DataFrame(columns=["Tarjeta", "Operación", "Monto"]) # Default vacío
     if st.session_state.calc_historial:
         df_calc = pd.DataFrame(st.session_state.calc_historial)
         
@@ -309,6 +308,7 @@ with tab3:
         
     st.divider()
     
+    # Recalculamos basándonos en la tabla editada
     base_cre = edited_calc[(edited_calc["Tarjeta"] == "Crédito") & (edited_calc["Operación"] == "Suma a Base")]["Monto"].sum()
     resta_cre = edited_calc[(edited_calc["Tarjeta"] == "Crédito") & (edited_calc["Operación"] == "Resta")]["Monto"].sum()
     
