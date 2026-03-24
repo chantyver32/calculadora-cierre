@@ -57,7 +57,6 @@ input{
 
 # ------------------ ORDEN Y CATEGORÍAS ------------------
 
-# Definición del orden estricto solicitado
 ORDEN_CATEGORIAS = [
     "Tarjeta Débito", 
     "Tarjeta Crédito", 
@@ -78,6 +77,44 @@ labels_botones = [
 
 # ------------------ LOGICA ------------------
 
+# --- VARIABLES DE SESIÓN PARA LA CALCULADORA ---
+if "calc_base_cre" not in st.session_state: st.session_state.calc_base_cre = 0.0
+if "calc_base_deb" not in st.session_state: st.session_state.calc_base_deb = 0.0
+if "calc_resta_cre" not in st.session_state: st.session_state.calc_resta_cre = 0.0
+if "calc_resta_deb" not in st.session_state: st.session_state.calc_resta_deb = 0.0
+# Nuevo: Historial de movimientos de la calculadora
+if "calc_historial" not in st.session_state: st.session_state.calc_historial = []
+
+def op_calc(tipo, accion):
+    monto = st.session_state.monto_calculadora
+    if monto and monto > 0:
+        # Lógica de sumas
+        if tipo == "cre" and accion == "base": st.session_state.calc_base_cre += monto
+        if tipo == "deb" and accion == "base": st.session_state.calc_base_deb += monto
+        if tipo == "cre" and accion == "resta": st.session_state.calc_resta_cre += monto
+        if tipo == "deb" and accion == "resta": st.session_state.calc_resta_deb += monto
+        
+        # Lógica de registro para el historial
+        tipo_str = "Crédito" if tipo == "cre" else "Débito"
+        accion_str = "Suma a Base" if accion == "base" else "Resta"
+        simbolo = "+" if accion == "base" else "-"
+        
+        st.session_state.calc_historial.append({
+            "Tarjeta": tipo_str,
+            "Operación": accion_str,
+            "Monto": f"{simbolo} ${monto:.2f}"
+        })
+        
+        st.session_state.monto_calculadora = None
+
+def limpiar_calc():
+    st.session_state.calc_base_cre = 0.0
+    st.session_state.calc_base_deb = 0.0
+    st.session_state.calc_resta_cre = 0.0
+    st.session_state.calc_resta_deb = 0.0
+    st.session_state.calc_historial = [] # Limpiar historial
+# -------------------------------------------------------
+
 def registrar_pago(cat):
     monto = st.session_state.monto_actual
     if monto and monto > 0:
@@ -93,12 +130,11 @@ def registrar_pago(cat):
 
 # ------------------ INTERFAZ (TABS) ------------------
 
-tab1, tab2 = st.tabs(["📝 REGISTRO", "📊 RESUMEN"])
+tab1, tab2, tab3 = st.tabs(["📝 REGISTRO", "📊 RESUMEN", "🧮 CALCULADORA"])
 
 with tab1:
     st.number_input("Monto", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_actual", placeholder="0.00")
     
-    # Grid de botones 3x2
     for i in range(0, len(labels_botones), 2):
         col1, col2 = st.columns(2)
         with col1:
@@ -120,7 +156,6 @@ with tab2:
     else:
         df = pd.DataFrame(datos, columns=["categoria", "monto", "hora"])
         
-        # Tabla de edición (Sin ID)
         st.write("### Movimientos")
         edited_df = st.data_editor(df, use_container_width=True, hide_index=True, num_rows="dynamic")
 
@@ -139,13 +174,11 @@ with tab2:
 
         st.divider()
 
-        # Resumen ordenado según ORDEN_CATEGORIAS
         st.write("### Totales por Categoría")
         
         mensaje = f"💰 *CORTE CHAMPLITTE* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
         total_general = 0
 
-        # Iterar en el orden específico
         for cat in ORDEN_CATEGORIAS:
             monto_cat = edited_df[edited_df["categoria"] == cat]["monto"].sum()
             if monto_cat > 0:
@@ -153,7 +186,6 @@ with tab2:
                 mensaje += f"• *{cat}:* ${monto_cat:.2f}\n"
                 total_general += monto_cat
         
-        # Tarjeta de total principal (Tarjetas)
         t_deb = edited_df[edited_df["categoria"] == "Tarjeta Débito"]["monto"].sum()
         t_cre = edited_df[edited_df["categoria"] == "Tarjeta Crédito"]["monto"].sum()
         
@@ -164,6 +196,51 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
 
-        # Botón WhatsApp
         url_wa = f"https://wa.me/522283530069?text={urllib.parse.quote(mensaje)}"
-        st.link_button("📲 ENVIAR REPORTE", url_wa, use_container_width=True) 
+        st.link_button("📲 ENVIAR REPORTE", url_wa, use_container_width=True)
+
+# --- TAB: CALCULADORA ---
+with tab3:
+    st.write("### Calculadora de Tarjetas")
+    st.number_input("Monto a ingresar", min_value=0.0, step=0.01, value=None, format="%.2f", key="monto_calculadora", placeholder="0.00")
+    
+    st.write("**1. Sumar Monto Base**")
+    c1, c2 = st.columns(2)
+    c1.button("➕ Base T. Crédito", on_click=op_calc, args=("cre", "base"), key="btn_base_cre")
+    c2.button("➕ Base T. Débito", on_click=op_calc, args=("deb", "base"), key="btn_base_deb")
+
+    st.write("**2. Restar Cantidades**")
+    c3, c4 = st.columns(2)
+    c3.button("➖ Restar a T. Crédito", on_click=op_calc, args=("cre", "resta"), key="btn_resta_cre")
+    c4.button("➖ Restar a T. Débito", on_click=op_calc, args=("deb", "resta"), key="btn_resta_deb")
+
+    st.divider()
+    
+    # --- NUEVO: TABLA DE DETALLES ---
+    st.write("### Detalle de Movimientos")
+    if st.session_state.calc_historial:
+        df_calc = pd.DataFrame(st.session_state.calc_historial)
+        st.dataframe(df_calc, use_container_width=True, hide_index=True)
+    else:
+        st.info("Aún no hay movimientos en la calculadora.")
+        
+    st.divider()
+    
+    st.write("### Resultados Finales")
+    
+    res_cre = st.session_state.calc_base_cre - st.session_state.calc_resta_cre
+    res_deb = st.session_state.calc_base_deb - st.session_state.calc_resta_deb
+    
+    st.markdown(f"""
+    <div class="confirm" style="border-left:5px solid #ffcc00;">
+        <p style="margin:0; font-size:14px; color:#aaa;">💳 T. CRÉDITO (Base: ${st.session_state.calc_base_cre:.2f} | Restado: ${st.session_state.calc_resta_cre:.2f})</p>
+        <h2 style="margin:0; color:#ffcc00;">${res_cre:.2f}</h2>
+    </div>
+    <div class="confirm" style="border-left:5px solid #00ccff;">
+        <p style="margin:0; font-size:14px; color:#aaa;">💳 T. DÉBITO (Base: ${st.session_state.calc_base_deb:.2f} | Restado: ${st.session_state.calc_resta_deb:.2f})</p>
+        <h2 style="margin:0; color:#00ccff;">${res_deb:.2f}</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.write("")
+    st.button("🧹 Limpiar Calculadora", on_click=limpiar_calc)
