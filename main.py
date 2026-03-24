@@ -238,7 +238,7 @@ with tab2:
                 mensaje_lista += f"• {row['categoria']}: ${row['monto']:.2f} ({row['hora']})\n"
             
             url_wa_lista = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_lista)}"
-            st.link_button("📲 ENVIAR LISTA DE REGISTROS AL WA", url_wa_lista, use_container_width=True)
+            st.link_button("📲 Enviar al WhatsApp", url_wa_lista, use_container_width=True)
 
         st.divider()
 
@@ -254,8 +254,8 @@ with tab2:
                 mensaje += f"• *{cat}:* ${monto_cat:.2f}\n"
                 total_general += monto_cat
         
-        t_deb = edited_df[edited_df["categoria"] == "Tarjeta Débito"]["monto"].sum()
-        t_cre = edited_df[edited_df["categoria"] == "Tarjeta Crédito"]["monto"].sum()
+        t_deb = edited_df[edited_df["categoria"] == "Débito"]["monto"].sum()
+        t_cre = edited_df[edited_df["categoria"] == "Crédito"]["monto"].sum()
         
         st.markdown(f"""
         <div class="total-card">
@@ -266,7 +266,7 @@ with tab2:
 
         # Botón para enviar EL RESUMEN TOTAL por WhatsApp
         url_wa_resumen = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje)}"
-        st.link_button("📲 ENVIAR REPORTE TOTAL AL WA", url_wa_resumen, use_container_width=True)
+        st.link_button("📲 Enviar al WhatsAppq", url_wa_resumen, use_container_width=True)
 
 # --- TAB 3: CALCULADORA ---
 with tab3:
@@ -311,11 +311,11 @@ with tab3:
     st.write("### Resultados Finales")
     st.markdown(f"""
     <div class="confirm" style="border-left:5px solid #ffcc00;">
-        <p style="margin:0; font-size:14px; color:#aaa;">💳 T. CRÉDITO (Base: ${base_cre:.2f} | Restado: ${resta_cre:.2f})</p>
+        <p style="margin:0; font-size:14px; color:#aaa;">💳 Crédito (Sumado: ${base_cre:.2f} | Restado: ${resta_cre:.2f})</p>
         <h2 style="margin:0; color:#ffcc00;">${res_cre:.2f}</h2>
     </div>
     <div class="confirm" style="border-left:5px solid #00ccff;">
-        <p style="margin:0; font-size:14px; color:#aaa;">💳 T. DÉBITO (Base: ${base_deb:.2f} | Restado: ${resta_deb:.2f})</p>
+        <p style="margin:0; font-size:14px; color:#aaa;">💳 Débito (Sumado: ${base_deb:.2f} | Restado: ${resta_deb:.2f})</p>
         <h2 style="margin:0; color:#00ccff;">${res_deb:.2f}</h2>
     </div>
     """, unsafe_allow_html=True)
@@ -328,8 +328,8 @@ with tab3:
     
     with col_calc_2:
         mensaje_calc = f"🧮 *CALCULADORA CHAMPLITTE* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
-        mensaje_calc += f"💳 *T. CRÉDITO:*\nBase: ${base_cre:.2f}\nRestado: ${resta_cre:.2f}\n*RESULTADO: ${res_cre:.2f}*\n\n"
-        mensaje_calc += f"💳 *T. DÉBITO:*\nBase: ${base_deb:.2f}\nRestado: ${resta_deb:.2f}\n*RESULTADO: ${res_deb:.2f}*"
+        mensaje_calc += f"💳 *Crédito:*\nSumado: ${base_cre:.2f}\nRestado: ${resta_cre:.2f}\n*Total: ${res_cre:.2f}*\n\n"
+        mensaje_calc += f"💳 *Débito:*\nSumado: ${base_deb:.2f}\nRestado: ${resta_deb:.2f}\n*Total: ${res_deb:.2f}*"
         
         url_wa_calc = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_calc)}"
-        st.link_button("📲 ENVIAR RESULTADOS AL WA", url_wa_calc, use_container_width=True)
+        st.link_button("📲 Enviar al WhatsApp", url_wa_calc, use_container_width=True)
