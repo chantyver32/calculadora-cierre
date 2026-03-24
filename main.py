@@ -196,7 +196,7 @@ with tab1:
             st.button("💵 Débito", on_click=registrar_pago, args=("Débito",), key="btn_deb")
         
         # Transferencia Liga abarcando todo el ancho abajo de los dos anteriores
-        st.button("🏦 Transf. Liga", on_click=registrar_pago, args=("Transferencia Liga",), key="btn_transf")
+        st.button("🔗 Transferencia Liga", on_click=registrar_pago, args=("Transferencia Liga",), key="btn_transf")
 
     with st.expander("🛵 Plataformas Delivery", expanded=False):
         col3, col4 = st.columns(2)
@@ -259,7 +259,7 @@ with tab2:
         
         st.markdown(f"""
         <div class="total-card">
-        <p>💳 TOTAL TARJETAS</p>
+        <p>"🏦 TOTAL TARJETAS"</p>
         <h1>${(t_deb + t_cre):.2f}</h1>
         </div>
         """, unsafe_allow_html=True)
