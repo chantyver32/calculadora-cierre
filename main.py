@@ -76,8 +76,8 @@ li[role="option"] {
 # ------------------ ORDEN Y CATEGORÍAS ------------------
 
 ORDEN_CATEGORIAS = [
-    "Débito", 
     "Crédito", 
+    "Débito", 
     "Uber", 
     "Didi", 
     "Rappi", 
@@ -189,12 +189,11 @@ with tab1:
     
     with st.expander("💳 Tarjetas y Transferencia", expanded=True):
         col1, col2 = st.columns(2)
-        # Ajustado para que en la vista de celular el orden hacia abajo sea: Crédito, Transf, Débito
         with col1:
             st.button("💳 Crédito", on_click=registrar_pago, args=("Crédito",), key="btn_cre")
             st.button("🔗 Transf. Liga", on_click=registrar_pago, args=("Transferencia Liga",), key="btn_transf")
         with col2:
-            st.button("💳 Débito", on_click=registrar_pago, args=("Débito",), key="btn_deb")
+            st.button("💵 Débito", on_click=registrar_pago, args=("Débito",), key="btn_deb")
 
     with st.expander("🛵 Plataformas Delivery", expanded=False):
         col3, col4 = st.columns(2)
@@ -320,7 +319,7 @@ with tab4:
         <h2 style="margin:0; color:#ffcc00;">${res_cre:.2f}</h2>
     </div>
     <div class="confirm" style="border-left:5px solid #00ccff;">
-        <p style="margin:0; font-size:14px; color:#aaa;">💳 Débito (Sumado: ${base_deb:.2f} | Restado: ${resta_deb:.2f})</p>
+        <p style="margin:0; font-size:14px; color:#aaa;">💵 Débito (Sumado: ${base_deb:.2f} | Restado: ${resta_deb:.2f})</p>
         <h2 style="margin:0; color:#00ccff;">${res_deb:.2f}</h2>
     </div>
     """, unsafe_allow_html=True)
@@ -334,7 +333,7 @@ with tab4:
     with col_calc_2:
         mensaje_calc = f"🧮 *CALCULADORA CHAMPLITTE* ({datetime.now(zona_mx).strftime('%d/%m/%Y')})\n\n"
         mensaje_calc += f"💳 *Crédito:*\nSumado: ${base_cre:.2f}\nRestado: ${resta_cre:.2f}\n*Total: ${res_cre:.2f}*\n\n"
-        mensaje_calc += f"💳 *Débito:*\nSumado: ${base_deb:.2f}\nRestado: ${resta_deb:.2f}\n*Total: ${res_deb:.2f}*"
+        mensaje_calc += f"💵 *Débito:*\nSumado: ${base_deb:.2f}\nRestado: ${resta_deb:.2f}\n*Total: ${res_deb:.2f}*"
         
         url_wa_calc = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje_calc)}"
         st.link_button("📲 Enviar al WhatsApp", url_wa_calc, use_container_width=True)
