@@ -292,7 +292,7 @@ with tab4:
             
         edited_calc = st.data_editor(df_calc, use_container_width=True, hide_index=True, num_rows="dynamic", key="editor_calc")
         
-        if st.button("💾 Guardar Cambios en Calculadora", use_container_width=True):
+        if st.button("💾 Guardar Cambios", use_container_width=True):
             st.session_state.calc_historial = edited_calc.to_dict('records')
             st.success("Cálculos actualizados.")
             time.sleep(1)
